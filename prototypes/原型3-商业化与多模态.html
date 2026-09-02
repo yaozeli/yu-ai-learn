@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>原型 3 · 商业化与多模态 — 阿衰闯关学习小程序</title>
+<style>
+  :root{
+    --yellow:#F2A900; --yellow-deep:#D18F00; --yellow-soft:#FFF4DC;
+    --green:#5BBF4A; --green-deep:#3E8E2F; --green-soft:#EAF7E6;
+    --red:#E85D5D; --red-deep:#C94A4A; --red-soft:#FDEBEB;
+    --blue:#3A9FE0; --blue-soft:#E8F3FB;
+    --bg:#FBF7EF; --card:#FFFFFF;
+    --ink:#333333; --ink-2:#8A8A8A; --line:#EDE6D8;
+    --shadow:0 4px 14px rgba(0,0,0,.06);
+    --shadow-btn:0 3px 0 rgba(0,0,0,.14);
+    --font-head:'ZCOOL KuaiLe','PingFang SC','Microsoft YaHei',sans-serif;
+    --font-body:'PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font-body);padding:32px 20px 60px}
+  .page-head{max-width:1180px;margin:0 auto 8px}
+  .page-head h1{font-family:var(--font-head);font-size:28px;color:var(--ink);letter-spacing:1px}
+  .page-head .sub{color:var(--ink-2);font-size:14px;margin-top:6px;line-height:1.7}
+  .page-head .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .badge{font-size:12px;padding:4px 12px;border-radius:999px;background:var(--yellow-soft);color:var(--yellow-deep);border:1px solid #F5DFA8;font-weight:600}
+  .badge.g{background:var(--green-soft);color:var(--green-deep);border-color:#CDE9C4}
+  .badge.b{background:var(--blue-soft);color:var(--blue);border-color:#C6E2F5}
+  .badge.r{background:var(--red-soft);color:var(--red-deep);border-color:#F3C2C2}
+  .legend{max-width:1180px;margin:16px auto 28px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+  .legend b{color:var(--ink)}
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+  .grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:28px 24px}
+  .page-card{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .phone{width:100%;max-width:320px;border-radius:30px;border:6px solid #2E2E2E;background:#fff;overflow:hidden;box-shadow:0 16px 36px rgba(0,0,0,.14)}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;padding:8px 18px 6px;background:var(--card);font-size:12px;font-weight:600;color:var(--ink)}
+  .screen{height:600px;overflow-y:auto;background:var(--bg);scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  .tabbar{display:flex;justify-content:space-around;padding:8px 6px 10px;background:var(--card);border-top:1px solid var(--line);font-size:11px;color:var(--ink-2)}
+  .tabbar .t{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .tabbar .t.on{color:var(--yellow-deep);font-weight:600}
+  .tabbar .t .ic{font-size:16px}
+  .page-label{width:100%;max-width:320px;text-align:center}
+  .page-label .pn{font-family:var(--font-head);font-size:16px;color:var(--ink)}
+  .page-label .pd{font-size:12px;color:var(--ink-2);margin-top:4px;line-height:1.6}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .btn{display:block;width:100%;padding:12px;border-radius:999px;border:none;font-size:15px;font-weight:600;font-family:var(--font-body);cursor:pointer;text-align:center}
+  .btn-yellow{background:var(--yellow);color:#fff;box-shadow:var(--shadow-btn)}
+  .btn-green{background:var(--green);color:#fff;box-shadow:var(--shadow-btn)}
+  .btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+  .btn-sm{padding:9px 0;font-size:13px}
+  .sec-title{font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  /* ---------- P1 VIP 会员 ---------- */
+  .vip-head{background:linear-gradient(160deg,#FFF4DC,#FFE0A8);padding:22px 16px;text-align:center}
+  .vip-title{font-family:var(--font-head);font-size:20px}
+  .vip-sub{font-size:12px;color:var(--yellow-deep);margin-top:6px;font-weight:600}
+  .vip-benefits{margin:12px 16px;padding:14px}
+  .benefit{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink);padding:8px 0;border-bottom:1px dashed var(--line)}
+  .benefit:last-child{border-bottom:none}
+  .benefit .b-ic{width:24px;height:24px;border-radius:8px;background:var(--yellow-soft);display:flex;align-items:center;justify-content:center;font-size:13px;flex:0 0 auto}
+  .benefit .b-tag{margin-left:auto;font-size:10px;color:var(--yellow-deep);background:var(--yellow-soft);border-radius:999px;padding:2px 8px;font-weight:600}
+  .plans{display:flex;gap:8px;margin:0 16px 12px}
+  .plan{flex:1;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:10px 4px;text-align:center}
+  .plan.hot{border-color:var(--yellow);background:var(--yellow-soft)}
+  .plan .p-name{font-size:12px;font-weight:600}
+  .plan .p-price{font-size:15px;font-weight:700;color:var(--yellow-deep);margin-top:4px}
+  .plan .p-unit{font-size:10px;color:var(--ink-2)}
+  .plan .p-tag{font-size:9px;color:var(--red);background:var(--red-soft);border-radius:999px;padding:1px 6px;display:inline-block;margin-top:4px;font-weight:600}
+  .vip-note{margin:0 16px 12px;padding:12px;font-size:11px;color:var(--ink-2);line-height:1.7}
+  .vip-btn{margin:0 16px 12px}
+  /* ---------- P2 多源输入 ---------- */
+  .src-head{font-family:var(--font-head);font-size:18px;text-align:center;padding:16px 0 4px}
+  .src-sub{font-size:12px;color:var(--ink-2);text-align:center;margin-bottom:12px}
+  .src-tabs{display:flex;gap:8px;margin:0 16px 12px}
+  .src-tab{flex:1;text-align:center;font-size:12px;font-weight:600;padding:9px 0;border-radius:12px;background:var(--card);border:1.5px solid var(--line);color:var(--ink-2)}
+  .src-tab.on{background:var(--yellow);color:#fff;border-color:var(--yellow)}
+  .src-card{margin:0 16px 12px;padding:14px}
+  .upload-zone{border:2px dashed #E8C96A;border-radius:12px;padding:20px 12px;text-align:center;background:var(--yellow-soft)}
+  .upload-zone .u-ic{font-size:30px}
+  .upload-zone .u-t{font-size:13px;color:var(--ink);font-weight:600;margin-top:6px}
+  .upload-zone .u-s{font-size:11px;color:var(--ink-2);margin-top:4px}
+  .src-input{margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:13px;color:var(--ink-2)}
+  .src-file{display:flex;align-items:center;gap:10px;margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .src-file .f-ic{font-size:20px}
+  .src-file .f-n{font-size:12px;color:var(--ink);flex:1}
+  .src-file .f-s{font-size:10px;color:var(--ink-2)}
+  .src-file .f-ok{color:var(--green);font-size:14px;font-weight:700}
+  .src-btn{margin:0 16px 12px}
+  .src-tip{font-size:11px;color:var(--ink-2);text-align:center;margin:0 20px 8px;line-height:1.6}
+  /* ---------- P3 RAG 知识库 ---------- */
+  .kb-head{font-family:var(--font-head);font-size:18px;text-align:center;padding:16px 0 4px}
+  .kb-sub{font-size:12px;color:var(--ink-2);text-align:center;margin-bottom:12px}
+  .kb-new{margin:0 16px 12px;padding:14px;border:2px dashed #E8C96A;border-radius:14px;text-align:center;font-size:13px;color:var(--yellow-deep);font-weight:600;background:var(--yellow-soft)}
+  .kb-item{margin:0 16px 12px;padding:14px;display:flex;align-items:center;gap:12px}
+  .kb-item .k-ic{width:44px;height:44px;border-radius:12px;background:var(--green-soft);display:flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto}
+  .kb-item .k-n{font-size:14px;font-weight:600}
+  .kb-item .k-s{font-size:11px;color:var(--ink-2);margin-top:2px}
+  .kb-item .k-btn{margin-left:auto;font-size:11px;color:var(--green-deep);background:var(--green-soft);border:1px solid #CDE9C4;border-radius:999px;padding:5px 10px;font-weight:600;flex:0 0 auto}
+  .kb-docs{margin:0 16px 12px;padding:4px 0}
+  .kb-doc{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px}
+  .kb-doc:last-child{border-bottom:none}
+  .kb-doc .d-ic{font-size:16px}
+  .kb-doc .d-n{flex:1;color:var(--ink)}
+  .kb-doc .d-st{font-size:10px;color:var(--green-deep);background:var(--green-soft);border-radius:999px;padding:2px 8px;font-weight:600}
+  .kb-btn{margin:0 16px 12px}
+  /* ---------- P4 邀请裂变 ---------- */
+  .inv-head{font-family:var(--font-head);font-size:18px;text-align:center;padding:16px 0 4px}
+  .inv-sub{font-size:12px;color:var(--ink-2);text-align:center;margin-bottom:12px}
+  .inv-poster{margin:0 16px 12px;border-radius:16px;background:linear-gradient(160deg,#FFF4DC,#FFE9B8);border:1px solid #F5DFA8;padding:20px 16px;text-align:center}
+  .inv-poster .p-t{font-family:var(--font-head);font-size:16px}
+  .inv-poster .p-s{font-size:12px;color:var(--yellow-deep);margin-top:6px;font-weight:600}
+  .inv-poster .p-code{width:84px;height:84px;margin:12px auto 6px;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--ink-2);border:1px solid var(--line)}
+  .inv-steps{margin:0 16px 12px;padding:4px 0}
+  .inv-step{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px}
+  .inv-step:last-child{border-bottom:none}
+  .inv-step .s-n{width:22px;height:22px;border-radius:50%;background:var(--yellow);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .inv-step .s-t{flex:1;color:var(--ink)}
+  .inv-step .s-r{font-size:11px;color:var(--yellow-deep);font-weight:600}
+  .inv-friends{margin:0 16px 12px;padding:4px 0}
+  .inv-friend{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:12px}
+  .inv-friend:last-child{border-bottom:none}
+  .inv-friend .f-ava{width:28px;height:28px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:14px;flex:0 0 auto}
+  .inv-friend .f-n{flex:1;color:var(--ink)}
+  .inv-friend .f-st{font-size:10px;color:var(--green-deep);background:var(--green-soft);border-radius:999px;padding:2px 8px;font-weight:600}
+  .inv-btn{margin:0 16px 12px}
+  /* ---------- P5 设置 ---------- */
+  .set-head{font-family:var(--font-head);font-size:18px;text-align:center;padding:16px 0 4px}
+  .set-sub{font-size:12px;color:var(--ink-2);text-align:center;margin-bottom:12px}
+  .set-card{margin:0 16px 12px;padding:4px 0}
+  .set-item{display:flex;align-items:center;gap:10px;padding:12px 14px;font-size:13px;color:var(--ink);border-bottom:1px solid var(--line)}
+  .set-item:last-child{border-bottom:none}
+  .set-item .si{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex:0 0 auto}
+  .set-item .arr{margin-left:auto;color:var(--ink-2)}
+  .set-item .val{font-size:12px;color:var(--ink-2)}
+  .switch{width:40px;height:22px;border-radius:999px;background:var(--green);position:relative;margin-left:auto;flex:0 0 auto}
+  .switch::after{content:"";position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:#fff}
+  .switch.off{background:var(--line)}
+  .switch.off::after{right:auto;left:2px}
+  .set-out{margin:0 16px 12px}
+  .set-ver{font-size:11px;color:var(--ink-2);text-align:center;margin-bottom:8px}
+  @media (max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:700px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>原型 3 · 商业化与多模态</h1>
+    <div class="sub">《阿衰闯关学习小程序》— VIP 会员 → 多源输入 → RAG 私有知识库 → 邀请裂变 → 设置</div>
+    <div class="badges">
+      <span class="badge">P1 · 输入扩展</span>
+      <span class="badge g">P1 · RAG 知识库</span>
+      <span class="badge b">P2 · 社交裂变</span>
+      <span class="badge r">P3 · 商业闭环</span>
+    </div>
+  </div>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--yellow)"></span>阿衰黄 · 主操作/付费</span>
+    <span><span class="swatch" style="background:var(--green)"></span>成长绿 · 已就绪/成功</span>
+    <span><span class="swatch" style="background:var(--red)"></span>番茄红 · 付费/提醒</span>
+    <span><b>多模态</b>：前期纯文本，后期接入生图/语音/数字人</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- ============ P1 VIP 会员 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="vip-head">
+            <div class="vip-title">👑 阿衰 VIP 会员</div>
+            <div class="vip-sub">解锁全部闯关能力，学习更高效</div>
+          </div>
+          <div class="card vip-benefits">
+            <div class="sec-title">会员专属权益</div>
+            <div class="benefit"><span class="b-ic">📄</span>超大文档解析（PDF/Word）<span class="b-tag">VIP</span></div>
+            <div class="benefit"><span class="b-ic">🧠</span>高级 AI 深度解析<span class="b-tag">VIP</span></div>
+            <div class="benefit"><span class="b-ic">🗂️</span>无限私有知识库<span class="b-tag">VIP</span></div>
+            <div class="benefit"><span class="b-ic">📊</span>深度复盘报告<span class="b-tag">VIP</span></div>
+            <div class="benefit"><span class="b-ic">⚡</span>出题速度提升 3 倍</div>
+          </div>
+          <div class="plans">
+            <div class="plan"><div class="p-name">月卡</div><div class="p-price">¥18<span class="p-unit">/月</span></div></div>
+            <div class="plan hot"><div class="p-name">季卡</div><div class="p-price">¥45<span class="p-unit">/季</span></div><div class="p-tag">省 17%</div></div>
+            <div class="plan"><div class="p-name">年卡</div><div class="p-price">¥128<span class="p-unit">/年</span></div><div class="p-tag">省 41%</div></div>
+          </div>
+          <div class="card vip-note">💡 高级 AI 解析包：按量付费 ¥0.5/次；超大文档解析按页计费，适合企业考核与真题模拟。</div>
+          <div class="vip-btn"><button class="btn btn-yellow">立即开通季卡</button></div>
+          <div class="vip-btn"><button class="btn btn-ghost btn-sm">企业 B2B 定制套餐</button></div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">01 · VIP 会员</div><div class="pd">订阅套餐 + 高级 AI 解析包 + 按量付费 + B2B 定制</div></div>
+    </div>
+
+    <!-- ============ P2 多源输入 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="src-head">多源输入</div>
+          <div class="src-sub">支持文本 / 文档 / 链接 / 视频</div>
+          <div class="src-tabs">
+            <div class="src-tab">文本</div>
+            <div class="src-tab on">文档</div>
+            <div class="src-tab">链接</div>
+            <div class="src-tab">视频</div>
+          </div>
+          <div class="card src-card">
+            <div class="upload-zone">
+              <div class="u-ic">📄</div>
+              <div class="u-t">点击上传 PDF / Word 文档</div>
+              <div class="u-s">支持 .pdf .docx .txt，最大 50MB</div>
+            </div>
+            <div class="src-file">
+              <span class="f-ic">📘</span>
+              <div><div class="f-n">RAG 技术白皮书.pdf</div><div class="f-s">2.4 MB · 已解析 100%</div></div>
+              <span class="f-ok">✓</span>
+            </div>
+            <div class="src-input">🔗 或粘贴网页 / 视频链接，如 https://…</div>
+          </div>
+          <div class="src-btn"><button class="btn btn-yellow">AI 解析并生成闯关</button></div>
+          <div class="src-tip">AI 自动提取全文内容，生成 5-10 道闯关题与讲解。超大文档需 VIP 或按量付费。</div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">02 · 多源输入</div><div class="pd">文档上传 + URL/视频链接解析，AI 提取全文自动出题</div></div>
+    </div>
+
+    <!-- ============ P3 RAG 私有知识库 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="kb-head">我的知识库</div>
+          <div class="kb-sub">RAG 私有知识库 · 企业考核 / 真题模拟</div>
+          <div class="kb-new">＋ 创建新知识库</div>
+          <div class="card kb-item">
+            <div class="k-ic">📚</div>
+            <div>
+              <div class="k-n">RAG 技术学习</div>
+              <div class="k-s">12 个文档 · 已索引</div>
+            </div>
+            <button class="k-btn">用它出题</button>
+          </div>
+          <div class="card kb-item">
+            <div class="k-ic" style="background:var(--blue-soft)">🏢</div>
+            <div>
+              <div class="k-n">公司产品培训</div>
+              <div class="k-s">8 个文档 · 已索引</div>
+            </div>
+            <button class="k-btn">用它出题</button>
+          </div>
+          <div class="card kb-item">
+            <div class="k-ic" style="background:var(--yellow-soft)">📝</div>
+            <div>
+              <div class="k-n">考试真题模拟</div>
+              <div class="k-s">5 个文档 · 索引中 60%</div>
+            </div>
+            <button class="k-btn" style="color:var(--ink-2);background:var(--bg);border-color:var(--line)">索引中</button>
+          </div>
+          <div class="card kb-docs">
+            <div class="kb-doc"><span class="d-ic">📄</span><span class="d-n">RAG 白皮书.pdf</span><span class="d-st">已索引</span></div>
+            <div class="kb-doc"><span class="d-ic">📄</span><span class="d-n">向量数据库选型.docx</span><span class="d-st">已索引</span></div>
+            <div class="kb-doc"><span class="d-ic">📄</span><span class="d-n">Prompt 工程指南.pdf</span><span class="d-st">已索引</span></div>
+          </div>
+          <div class="kb-btn"><button class="btn btn-green">基于知识库生成闯关题</button></div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">03 · RAG 私有知识库</div><div class="pd">多文件夹管理 + 文档索引 + 基于私有知识出题</div></div>
+    </div>
+
+    <!-- ============ P4 邀请裂变 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="inv-head">邀请好友</div>
+          <div class="inv-sub">一起闯关，奖励阶梯解锁</div>
+          <div class="inv-poster">
+            <div class="p-t">🎁 邀请好友得奖励</div>
+            <div class="p-s">好友扫码闯关，双方各得 100 XP</div>
+            <div class="p-code">邀请海报 / 小程序码</div>
+          </div>
+          <div class="card inv-steps">
+            <div class="inv-step"><span class="s-n">1</span><span class="s-t">邀请 1 位好友</span><span class="s-r">+100 XP</span></div>
+            <div class="inv-step"><span class="s-n">2</span><span class="s-t">邀请 3 位好友</span><span class="s-r">解锁宝藏关卡</span></div>
+            <div class="inv-step"><span class="s-n">3</span><span class="s-t">邀请 10 位好友</span><span class="s-r">解锁专属徽章</span></div>
+          </div>
+          <div class="card inv-friends">
+            <div class="sec-title" style="padding:10px 14px 4px">已邀请好友</div>
+            <div class="inv-friend"><span class="f-ava">🐱</span><span class="f-n">大脸妹</span><span class="f-st">已加入</span></div>
+            <div class="inv-friend"><span class="f-ava">🦊</span><span class="f-n">小冲</span><span class="f-st">已加入</span></div>
+            <div class="inv-friend"><span class="f-ava">🐻</span><span class="f-n">庄库</span><span class="f-st">待接受</span></div>
+          </div>
+          <div class="inv-btn"><button class="btn btn-yellow">生成邀请海报</button></div>
+          <div class="inv-btn"><button class="btn btn-green btn-sm">邀请好友 PK</button></div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">04 · 邀请裂变</div><div class="pd">阶梯奖励 + 邀请海报 + 好友状态，社交裂变闭环</div></div>
+    </div>
+
+    <!-- ============ P5 设置 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="set-head">设置</div>
+          <div class="set-sub">账号与偏好</div>
+          <div class="card set-card">
+            <div class="set-item"><span class="si" style="background:var(--yellow-soft)">👤</span>个人信息<span class="val">爱学习的阿衰</span><span class="arr">›</span></div>
+            <div class="set-item"><span class="si" style="background:var(--blue-soft)">🔔</span>学习提醒<span class="switch"></span></div>
+            <div class="set-item"><span class="si" style="background:var(--green-soft)">📅</span>每日打卡提醒<span class="switch"></span></div>
+            <div class="set-item"><span class="si" style="background:var(--bg)">🔒</span>隐私设置<span class="arr">›</span></div>
+            <div class="set-item"><span class="si" style="background:var(--bg)">🔊</span>音效与动效<span class="switch off"></span></div>
+            <div class="set-item"><span class="si" style="background:var(--bg)">ℹ️</span>关于我们<span class="arr">›</span></div>
+          </div>
+          <div class="set-out"><button class="btn btn-ghost btn-sm">退出登录</button></div>
+          <div class="set-ver">阿衰闯关学习 v1.0.0</div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">05 · 设置</div><div class="pd">个人信息 + 通知开关 + 隐私 + 关于，微信授权登录</div></div>
+    </div>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>原型 2 · 扩展功能（留存与社交）— 阿衰闯关学习小程序</title>
+<style>
+  :root{
+    --yellow:#F2A900; --yellow-deep:#D18F00; --yellow-soft:#FFF4DC;
+    --green:#5BBF4A; --green-deep:#3E8E2F; --green-soft:#EAF7E6;
+    --red:#E85D5D; --red-deep:#C94A4A; --red-soft:#FDEBEB;
+    --blue:#3A9FE0; --blue-soft:#E8F3FB;
+    --bg:#FBF7EF; --card:#FFFFFF;
+    --ink:#333333; --ink-2:#8A8A8A; --line:#EDE6D8;
+    --shadow:0 4px 14px rgba(0,0,0,.06);
+    --shadow-btn:0 3px 0 rgba(0,0,0,.14);
+    --font-head:'ZCOOL KuaiLe','PingFang SC','Microsoft YaHei',sans-serif;
+    --font-body:'PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font-body);padding:32px 20px 60px}
+  .page-head{max-width:1180px;margin:0 auto 8px}
+  .page-head h1{font-family:var(--font-head);font-size:28px;color:var(--ink);letter-spacing:1px}
+  .page-head .sub{color:var(--ink-2);font-size:14px;margin-top:6px;line-height:1.7}
+  .page-head .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .badge{font-size:12px;padding:4px 12px;border-radius:999px;background:var(--yellow-soft);color:var(--yellow-deep);border:1px solid #F5DFA8;font-weight:600}
+  .badge.g{background:var(--green-soft);color:var(--green-deep);border-color:#CDE9C4}
+  .badge.b{background:var(--blue-soft);color:var(--blue);border-color:#C6E2F5}
+  .legend{max-width:1180px;margin:16px auto 28px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+  .legend b{color:var(--ink)}
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+  .grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:28px 24px}
+  .page-card{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .phone{width:100%;max-width:320px;border-radius:30px;border:6px solid #2E2E2E;background:#fff;overflow:hidden;box-shadow:0 16px 36px rgba(0,0,0,.14)}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;padding:8px 18px 6px;background:var(--card);font-size:12px;font-weight:600;color:var(--ink)}
+  .screen{height:600px;overflow-y:auto;background:var(--bg);scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  .tabbar{display:flex;justify-content:space-around;padding:8px 6px 10px;background:var(--card);border-top:1px solid var(--line);font-size:11px;color:var(--ink-2)}
+  .tabbar .t{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .tabbar .t.on{color:var(--yellow-deep);font-weight:600}
+  .tabbar .t .ic{font-size:16px}
+  .page-label{width:100%;max-width:320px;text-align:center}
+  .page-label .pn{font-family:var(--font-head);font-size:16px;color:var(--ink)}
+  .page-label .pd{font-size:12px;color:var(--ink-2);margin-top:4px;line-height:1.6}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .btn{display:block;width:100%;padding:12px;border-radius:999px;border:none;font-size:15px;font-weight:600;font-family:var(--font-body);cursor:pointer;text-align:center}
+  .btn-yellow{background:var(--yellow);color:#fff;box-shadow:var(--shadow-btn)}
+  .btn-green{background:var(--green);color:#fff;box-shadow:var(--shadow-btn)}
+  .btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+  .btn-sm{padding:9px 0;font-size:13px}
+  .mascot{width:46px;height:46px;flex:0 0 auto}
+  .sec-title{font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  /* ---------- P1 个人中心 ---------- */
+  .me-head{background:linear-gradient(160deg,#FFF4DC,#FFE9B8);padding:20px 16px 44px}
+  .me-row{display:flex;align-items:center;gap:12px}
+  .me-avatar{width:56px;height:56px;border-radius:50%;background:var(--card);border:2px solid #F5DFA8;display:flex;align-items:center;justify-content:center;font-size:26px}
+  .me-name{font-family:var(--font-head);font-size:17px}
+  .me-rank{font-size:11px;color:var(--yellow-deep);background:var(--card);border-radius:999px;padding:2px 10px;display:inline-block;margin-top:4px;font-weight:600}
+  .me-stats{display:flex;gap:10px;margin:-26px 16px 12px;position:relative}
+  .me-stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 4px;text-align:center;box-shadow:var(--shadow)}
+  .me-stat .n{font-size:16px;font-weight:700;color:var(--ink)}
+  .me-stat .l{font-size:11px;color:var(--ink-2);margin-top:2px}
+  .menu-card{margin:0 16px 12px;padding:4px 0}
+  .menu-item{display:flex;align-items:center;gap:10px;padding:12px 14px;font-size:13px;color:var(--ink);border-bottom:1px solid var(--line)}
+  .menu-item:last-child{border-bottom:none}
+  .menu-item .mi{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex:0 0 auto}
+  .menu-item .arr{margin-left:auto;color:var(--ink-2)}
+  .menu-item .tag-r{font-size:10px;color:var(--red);background:var(--red-soft);border-radius:999px;padding:2px 8px;font-weight:600}
+  /* ---------- P2 学习数据分析 ---------- */
+  .ana-head{font-family:var(--font-head);font-size:18px;text-align:center;padding:16px 0 4px}
+  .ana-sub{font-size:12px;color:var(--ink-2);text-align:center;margin-bottom:12px}
+  .ana-top{display:flex;gap:10px;margin:0 16px 12px}
+  .ana-kpi{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center;box-shadow:var(--shadow)}
+  .ana-kpi .n{font-size:16px;font-weight:700;color:var(--yellow-deep)}
+  .ana-kpi .l{font-size:11px;color:var(--ink-2);margin-top:2px}
+  .chart-card{margin:0 16px 12px;padding:14px}
+  .bars{display:flex;align-items:flex-end;gap:8px;height:90px;padding-top:6px}
+  .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .bar .b{width:100%;border-radius:6px 6px 2px 2px;background:var(--yellow)}
+  .bar .d{font-size:10px;color:var(--ink-2)}
+  .heat{margin:0 16px 12px;padding:14px}
+  .heat-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .heat-cell{aspect-ratio:1;border-radius:4px;background:var(--line)}
+  .heat-cell.h1{background:#FDE9B8}
+  .heat-cell.h2{background:#F7D36B}
+  .heat-cell.h3{background:var(--yellow)}
+  .heat-cell.h4{background:var(--yellow-deep)}
+  .heat-legend{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--ink-2);margin-top:8px;justify-content:flex-end}
+  .mastery{margin:0 16px 12px;padding:14px}
+  .m-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .m-row:last-child{margin-bottom:0}
+  .m-name{font-size:12px;color:var(--ink);width:64px;flex:0 0 auto}
+  .m-track{flex:1;height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+  .m-fill{height:100%;border-radius:999px;background:var(--green)}
+  .m-pct{font-size:11px;color:var(--ink-2);width:34px;text-align:right;flex:0 0 auto}
+  /* ---------- P3 错题本 ---------- */
+  .err-head{font-family:var(--font-head);font-size:18px;text-align:center;padding:16px 0 4px}
+  .err-sub{font-size:12px;color:var(--ink-2);text-align:center;margin-bottom:12px}
+  .treasure{margin:0 16px 12px;padding:14px;background:linear-gradient(160deg,#FFF4DC,#FFE9B8);border:1px solid #F5DFA8;border-radius:14px;display:flex;align-items:center;gap:12px}
+  .treasure .t-ic{width:44px;height:44px;border-radius:12px;background:var(--yellow);display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto;box-shadow:var(--shadow-btn)}
+  .treasure .t-t{font-family:var(--font-head);font-size:14px}
+  .treasure .t-s{font-size:11px;color:var(--ink-2);margin-top:2px}
+  .treasure .t-btn{margin-left:auto;font-size:12px;background:var(--yellow);color:#fff;border:none;border-radius:999px;padding:7px 12px;font-weight:600;flex:0 0 auto}
+  .err-group{margin:0 16px 12px;padding:4px 0}
+  .err-g-head{display:flex;align-items:center;gap:6px;padding:10px 14px 6px;font-size:12px;font-weight:700;color:var(--ink)}
+  .err-g-head .cnt{margin-left:auto;font-size:11px;color:var(--ink-2);font-weight:400}
+  .err-item{padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--ink);line-height:1.6}
+  .err-item:last-child{border-bottom:none}
+  .err-item .e-tag{font-size:10px;color:var(--red);background:var(--red-soft);border-radius:999px;padding:1px 8px;margin-right:6px;font-weight:600}
+  .err-item .e-time{font-size:10px;color:var(--ink-2);margin-top:4px}
+  .err-item .e-btn{float:right;font-size:11px;color:var(--yellow-deep);background:var(--yellow-soft);border:1px solid #F5DFA8;border-radius:999px;padding:3px 10px;font-weight:600}
+  /* ---------- P4 关卡地图 ---------- */
+  .map-head{font-family:var(--font-head);font-size:18px;text-align:center;padding:16px 0 4px}
+  .map-sub{font-size:12px;color:var(--ink-2);text-align:center;margin-bottom:12px}
+  .map-card{margin:0 16px 12px;padding:16px}
+  .map-chapter{font-size:12px;font-weight:700;color:var(--ink);margin-bottom:10px}
+  .path{display:flex;flex-direction:column;gap:14px;align-items:center;padding:4px 0}
+  .path-row{display:flex;align-items:center;gap:8px}
+  .p-node{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:0 0 auto}
+  .p-node.done{background:var(--green);color:#fff;box-shadow:0 3px 0 var(--green-deep)}
+  .p-node.cur{background:var(--yellow);color:#fff;box-shadow:0 3px 0 var(--yellow-deep);position:relative}
+  .p-node.cur::after{content:"当前";position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--yellow-deep);font-weight:600;white-space:nowrap}
+  .p-node.lock{background:var(--card);border:2px solid var(--line);color:var(--ink-2)}
+  .p-node.chest{background:var(--yellow-soft);border:2px solid #F5DFA8;font-size:18px}
+  .p-node.boss{background:var(--red-soft);border:2px solid #F3C2C2;font-size:18px}
+  .p-line{width:3px;height:18px;border-radius:999px;background:var(--line)}
+  .p-line.on{background:var(--green)}
+  .p-label{font-size:10px;color:var(--ink-2);text-align:center;margin-top:4px}
+  .map-legend{display:flex;gap:10px;justify-content:center;font-size:10px;color:var(--ink-2);margin-top:6px}
+  /* ---------- P5 排行榜 ---------- */
+  .rank-head{font-family:var(--font-head);font-size:18px;text-align:center;padding:16px 0 4px}
+  .rank-sub{font-size:12px;color:var(--ink-2);text-align:center;margin-bottom:12px}
+  .rank-tabs{display:flex;gap:8px;margin:0 16px 12px}
+  .rank-tab{flex:1;text-align:center;font-size:12px;font-weight:600;padding:8px 0;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--ink-2)}
+  .rank-tab.on{background:var(--yellow);color:#fff;border-color:var(--yellow)}
+  .rank-podium{display:flex;align-items:flex-end;gap:8px;margin:0 20px 12px}
+  .podium{flex:1;text-align:center}
+  .podium .p-ava{width:44px;height:44px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--card);border:2px solid var(--line)}
+  .podium.p1 .p-ava{border-color:var(--yellow);background:var(--yellow-soft)}
+  .podium.p2 .p-ava{border-color:#C9CDD4}
+  .podium.p3 .p-ava{border-color:#D8A06A}
+  .podium .p-name{font-size:11px;color:var(--ink);margin-top:4px}
+  .podium .p-xp{font-size:10px;color:var(--ink-2)}
+  .podium .p-bar{height:8px;border-radius:6px 6px 0 0;margin-top:4px}
+  .rank-list{margin:0 16px 12px;padding:4px 0}
+  .rank-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px}
+  .rank-item:last-child{border-bottom:none}
+  .rank-item.me{background:var(--yellow-soft)}
+  .rank-no{width:22px;text-align:center;font-weight:700;color:var(--ink-2);font-size:13px}
+  .rank-no.top{color:var(--yellow-deep)}
+  .rank-ava{width:30px;height:30px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto}
+  .rank-name{font-size:13px;color:var(--ink);flex:1}
+  .rank-xp{font-size:12px;color:var(--ink-2);font-weight:600}
+  /* ---------- P6 双人 PK ---------- */
+  .pk-head{font-family:var(--font-head);font-size:18px;text-align:center;padding:16px 0 4px}
+  .pk-sub{font-size:12px;color:var(--ink-2);text-align:center;margin-bottom:12px}
+  .pk-vs{display:flex;align-items:center;justify-content:center;gap:14px;margin:0 16px 12px}
+  .pk-side{flex:1;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 6px;box-shadow:var(--shadow)}
+  .pk-side.me{border-color:var(--yellow)}
+  .pk-side .pk-ava{width:44px;height:44px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--bg)}
+  .pk-side .pk-name{font-size:12px;color:var(--ink);margin-top:6px;font-weight:600}
+  .pk-side .pk-score{font-size:16px;font-weight:700;color:var(--yellow-deep);margin-top:2px}
+  .pk-vs-txt{font-family:var(--font-head);font-size:20px;color:var(--red);flex:0 0 auto}
+  .pk-progress{margin:0 16px 12px;padding:14px}
+  .pk-bar{display:flex;align-items:center;gap:8px}
+  .pk-track{flex:1;height:10px;border-radius:999px;background:var(--line);overflow:hidden;position:relative}
+  .pk-fill-l{height:100%;background:var(--yellow);border-radius:999px 0 0 999px}
+  .pk-fill-r{height:100%;background:var(--blue);border-radius:0 999px 999px 0}
+  .pk-q{margin:0 16px 12px;padding:14px}
+  .pk-q-tag{font-size:11px;color:var(--blue);background:var(--blue-soft);border-radius:999px;padding:3px 10px;font-weight:600;display:inline-block;margin-bottom:8px}
+  .pk-q-stem{font-size:14px;font-weight:600;line-height:1.6;margin-bottom:10px}
+  .pk-opt{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;margin-bottom:8px}
+  .pk-opt.sel{border-color:var(--yellow);background:var(--yellow-soft)}
+  .pk-btn{margin:0 16px}
+  .pk-result{text-align:center;padding:20px 16px}
+  .pk-result .r-t{font-family:var(--font-head);font-size:20px}
+  .pk-result .r-s{font-size:12px;color:var(--ink-2);margin-top:6px}
+  @media (max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:700px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>原型 2 · 扩展功能（留存与社交）</h1>
+    <div class="sub">《阿衰闯关学习小程序》— 个人中心 → 学习数据分析 → 错题本/旧识重温 → 关卡地图 → 排行榜 → 双人 PK</div>
+    <div class="badges">
+      <span class="badge">P1 · 用户留存</span>
+      <span class="badge g">P1 · 错题与复盘</span>
+      <span class="badge b">P2 · 社交对战</span>
+    </div>
+  </div>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--yellow)"></span>阿衰黄 · 主操作</span>
+    <span><span class="swatch" style="background:var(--green)"></span>成长绿 · 已掌握/已通关</span>
+    <span><span class="swatch" style="background:var(--red)"></span>番茄红 · 错题/Boss 关</span>
+    <span><span class="swatch" style="background:var(--blue)"></span>天空蓝 · 对战方</span>
+    <span><b>扩展功能</b>：MVP 之后按优先级逐步上线</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- ============ P1 个人中心 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="me-head">
+            <div class="me-row">
+              <div class="me-avatar">😎</div>
+              <div>
+                <div class="me-name">爱学习的阿衰</div>
+                <div class="me-rank">🏅 青铜段位 · Lv.5</div>
+              </div>
+            </div>
+          </div>
+          <div class="me-stats">
+            <div class="me-stat"><div class="n">23</div><div class="l">累计闯关</div></div>
+            <div class="me-stat"><div class="n">6.5h</div><div class="l">学习时长</div></div>
+            <div class="me-stat"><div class="n">7天</div><div class="l">连续打卡</div></div>
+          </div>
+          <div class="card menu-card">
+            <div class="menu-item"><span class="mi" style="background:var(--yellow-soft)">🎯</span>我的闯关记录<span class="arr">›</span></div>
+            <div class="menu-item"><span class="mi" style="background:var(--red-soft)">📕</span>错题本<span class="tag-r">3 题待复习</span><span class="arr">›</span></div>
+            <div class="menu-item"><span class="mi" style="background:var(--green-soft)">🗂️</span>我的知识库<span class="arr">›</span></div>
+            <div class="menu-item"><span class="mi" style="background:var(--blue-soft)">🏆</span>排行榜<span class="arr">›</span></div>
+            <div class="menu-item"><span class="mi" style="background:var(--yellow-soft)">👑</span>VIP 会员<span class="arr">›</span></div>
+            <div class="menu-item"><span class="mi" style="background:var(--bg)">⚙️</span>设置<span class="arr">›</span></div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="t"><span class="ic">🏠</span>首页</div>
+          <div class="t"><span class="ic">🎯</span>闯关</div>
+          <div class="t"><span class="ic">📊</span>报告</div>
+          <div class="t on"><span class="ic">👤</span>我的</div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">01 · 个人中心</div><div class="pd">段位 + 学习数据 + 功能入口，错题本带待复习角标</div></div>
+    </div>
+
+    <!-- ============ P2 学习数据分析 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="ana-head">学习数据分析</div>
+          <div class="ana-sub">近 7 天学习情况</div>
+          <div class="ana-top">
+            <div class="ana-kpi"><div class="n">86%</div><div class="l">平均正确率</div></div>
+            <div class="ana-kpi"><div class="n">45</div><div class="l">累计答题</div></div>
+            <div class="ana-kpi"><div class="n">12</div><div class="l">掌握知识点</div></div>
+          </div>
+          <div class="card chart-card">
+            <div class="sec-title">📈 正确率趋势</div>
+            <div class="bars">
+              <div class="bar"><div class="b" style="height:70%;background:var(--green)"></div><div class="d">一</div></div>
+              <div class="bar"><div class="b" style="height:60%;background:var(--green)"></div><div class="d">二</div></div>
+              <div class="bar"><div class="b" style="height:80%;background:var(--green)"></div><div class="d">三</div></div>
+              <div class="bar"><div class="b" style="height:90%;background:var(--yellow)"></div><div class="d">四</div></div>
+              <div class="bar"><div class="b" style="height:75%;background:var(--green)"></div><div class="d">五</div></div>
+              <div class="bar"><div class="b" style="height:85%;background:var(--green)"></div><div class="d">六</div></div>
+              <div class="bar"><div class="b" style="height:95%;background:var(--yellow)"></div><div class="d">日</div></div>
+            </div>
+          </div>
+          <div class="card heat">
+            <div class="sec-title">🔥 学习热力图</div>
+            <div class="heat-grid">
+              <div class="heat-cell h3"></div><div class="heat-cell h2"></div><div class="heat-cell"></div><div class="heat-cell h1"></div><div class="heat-cell h4"></div><div class="heat-cell h3"></div><div class="heat-cell h2"></div>
+              <div class="heat-cell h4"></div><div class="heat-cell"></div><div class="heat-cell h1"></div><div class="heat-cell h2"></div><div class="heat-cell h3"></div><div class="heat-cell h4"></div><div class="heat-cell h2"></div>
+              <div class="heat-cell h1"></div><div class="heat-cell h3"></div><div class="heat-cell h4"></div><div class="heat-cell h2"></div><div class="heat-cell"></div><div class="heat-cell h1"></div><div class="heat-cell h3"></div>
+              <div class="heat-cell h2"></div><div class="heat-cell h4"></div><div class="heat-cell h3"></div><div class="heat-cell h1"></div><div class="heat-cell h2"></div><div class="heat-cell h3"></div><div class="heat-cell h4"></div>
+            </div>
+            <div class="heat-legend">少 <span class="heat-cell h1" style="display:inline-block;width:10px;height:10px"></span><span class="heat-cell h2" style="display:inline-block;width:10px;height:10px"></span><span class="heat-cell h3" style="display:inline-block;width:10px;height:10px"></span><span class="heat-cell h4" style="display:inline-block;width:10px;height:10px"></span> 多</div>
+          </div>
+          <div class="card mastery">
+            <div class="sec-title">🧠 知识点掌握度</div>
+            <div class="m-row"><span class="m-name">RAG 基础</span><div class="m-track"><div class="m-fill" style="width:90%"></div></div><span class="m-pct">90%</span></div>
+            <div class="m-row"><span class="m-name">向量检索</span><div class="m-track"><div class="m-fill" style="width:65%"></div></div><span class="m-pct">65%</span></div>
+            <div class="m-row"><span class="m-name">提示词</span><div class="m-track"><div class="m-fill" style="width:78%"></div></div><span class="m-pct">78%</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">02 · 学习数据分析</div><div class="pd">正确率趋势 + 热力图 + 知识点掌握度，支持生成深度复盘报告</div></div>
+    </div>
+
+    <!-- ============ P3 错题本 / 旧识重温 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="err-head">错题本</div>
+          <div class="err-sub">结合艾宾浩斯遗忘曲线，定时提醒重温</div>
+          <div class="treasure">
+            <div class="t-ic">🎁</div>
+            <div>
+              <div class="t-t">旧识重温 · 宝藏关卡</div>
+              <div class="t-s">3 天后自动解锁，巩固薄弱点</div>
+            </div>
+            <button class="t-btn">去挑战</button>
+          </div>
+          <div class="card err-group">
+            <div class="err-g-head">📕 RAG 相关 <span class="cnt">2 题</span></div>
+            <div class="err-item"><span class="e-tag">错</span>RAG 与搜索引擎的边界<button class="e-btn">重新挑战</button><div class="e-time">答错于 3 天前 · 建议今日重温</div></div>
+            <div class="err-item"><span class="e-tag">错</span>向量数据库的作用<button class="e-btn">重新挑战</button><div class="e-time">答错于 1 天前 · 建议 3 天后重温</div></div>
+          </div>
+          <div class="card err-group">
+            <div class="err-g-head">📕 快速排序 <span class="cnt">1 题</span></div>
+            <div class="err-item"><span class="e-tag">错</span>最坏时间复杂度分析<button class="e-btn">重新挑战</button><div class="e-time">答错于 5 天前 · 建议今日重温</div></div>
+          </div>
+          <div class="card err-group">
+            <div class="err-g-head">📕 光合作用 <span class="cnt">1 题</span></div>
+            <div class="err-item"><span class="e-tag">错</span>暗反应发生的场所<button class="e-btn">重新挑战</button><div class="e-time">答错于 2 天前 · 建议 2 天后重温</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">03 · 错题本 / 旧识重温</div><div class="pd">按知识点分组 + 遗忘曲线提醒 + 宝藏关卡自动触发</div></div>
+    </div>
+
+    <!-- ============ P4 关卡地图 / 知识树 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="map-head">关卡地图</div>
+          <div class="map-sub">RAG 学习路线 · 第 1 章</div>
+          <div class="card map-card">
+            <div class="map-chapter">第一章 · RAG 入门</div>
+            <div class="path">
+              <div class="path-row"><div class="p-node done">✓</div><div class="p-label">认识 RAG</div></div>
+              <div class="p-line on"></div>
+              <div class="path-row"><div class="p-node done">✓</div><div class="p-label">核心组成</div></div>
+              <div class="p-line on"></div>
+              <div class="path-row"><div class="p-node cur">3</div><div class="p-label">检索与生成</div></div>
+              <div class="p-line"></div>
+              <div class="path-row"><div class="p-node chest">🎁</div><div class="p-label">宝藏关</div></div>
+              <div class="p-line"></div>
+              <div class="path-row"><div class="p-node lock">5</div><div class="p-label">应用场景</div></div>
+              <div class="p-line"></div>
+              <div class="path-row"><div class="p-node boss">👹</div><div class="p-label">Boss 关</div></div>
+            </div>
+            <div class="map-legend"><span>✅ 已通关</span><span>🟡 当前</span><span>🎁 宝藏关</span><span>👹 Boss 关</span><span>🔒 未解锁</span></div>
+          </div>
+          <div class="card map-card">
+            <div class="map-chapter">第二章 · 进阶应用 <span style="font-size:10px;color:var(--ink-2);font-weight:400">未解锁</span></div>
+            <div class="path">
+              <div class="path-row"><div class="p-node lock">1</div><div class="p-label">RAG 工程化</div></div>
+              <div class="p-line"></div>
+              <div class="path-row"><div class="p-node lock">2</div><div class="p-label">评估与调优</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">04 · 关卡地图 / 知识树</div><div class="pd">路径式关卡 + 宝藏关 + Boss 关，按章节递进</div></div>
+    </div>
+
+    <!-- ============ P5 排行榜 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="rank-head">排行榜</div>
+          <div class="rank-sub">青铜段位 · 本周经验值</div>
+          <div class="rank-tabs">
+            <div class="rank-tab on">好友榜</div>
+            <div class="rank-tab">全服榜</div>
+            <div class="rank-tab">知识领域</div>
+          </div>
+          <div class="rank-podium">
+            <div class="podium p2"><div class="p-ava">🐱</div><div class="p-name">大脸妹</div><div class="p-xp">980 XP</div><div class="p-bar" style="background:#C9CDD4;height:34px"></div></div>
+            <div class="podium p1"><div class="p-ava">🦊</div><div class="p-name">小冲</div><div class="p-xp">1200 XP</div><div class="p-bar" style="background:var(--yellow);height:46px"></div></div>
+            <div class="podium p3"><div class="p-ava">🐻</div><div class="p-name">庄库</div><div class="p-xp">860 XP</div><div class="p-bar" style="background:#D8A06A;height:28px"></div></div>
+          </div>
+          <div class="card rank-list">
+            <div class="rank-item"><span class="rank-no top">4</span><span class="rank-ava">🐸</span><span class="rank-name">阿衰（我）</span><span class="rank-xp">720 XP</span></div>
+            <div class="rank-item"><span class="rank-no">5</span><span class="rank-ava">🐰</span><span class="rank-name">小美</span><span class="rank-xp">680 XP</span></div>
+            <div class="rank-item"><span class="rank-no">6</span><span class="rank-ava">🐶</span><span class="rank-name">旺财</span><span class="rank-xp">610 XP</span></div>
+            <div class="rank-item"><span class="rank-no">7</span><span class="rank-ava">🐹</span><span class="rank-name">阿呆</span><span class="rank-xp">540 XP</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">05 · 排行榜</div><div class="pd">段位分层 + 好友/全服/领域切换，我的排名高亮</div></div>
+    </div>
+
+    <!-- ============ P6 双人 PK ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="pk-head">双人 PK</div>
+          <div class="pk-sub">邀请好友，同一套题比正确率与速度</div>
+          <div class="pk-vs">
+            <div class="pk-side me"><div class="pk-ava">🐸</div><div class="pk-name">阿衰（我）</div><div class="pk-score">3 对</div></div>
+            <div class="pk-vs-txt">VS</div>
+            <div class="pk-side"><div class="pk-ava">🐱</div><div class="pk-name">大脸妹</div><div class="pk-score">2 对</div></div>
+          </div>
+          <div class="card pk-progress">
+            <div class="pk-bar">
+              <div class="pk-track" style="display:flex"><div class="pk-fill-l" style="width:60%"></div><div class="pk-fill-r" style="width:40%"></div></div>
+            </div>
+            <div style="font-size:11px;color:var(--ink-2);margin-top:8px;text-align:center">第 4 / 5 题 · 阿衰领先</div>
+          </div>
+          <div class="card pk-q">
+            <span class="pk-q-tag">PK 对战 · 单选</span>
+            <div class="pk-q-stem">RAG 中「检索器」的主要作用是什么？</div>
+            <div class="pk-opt sel">A. 从知识库中找到相关资料</div>
+            <div class="pk-opt">B. 直接生成最终答案</div>
+            <div class="pk-opt">C. 压缩模型参数</div>
+          </div>
+          <div class="pk-btn"><button class="btn btn-yellow">提交答案</button></div>
+          <div class="pk-result">
+            <div class="r-t">🏆 你赢了！</div>
+            <div class="r-s">正确率 80% vs 60% · 用时 2:05</div>
+            <div style="margin-top:10px"><button class="btn btn-green btn-sm">查看战报</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">06 · 双人 PK</div><div class="pd">实时比分 + 进度对比 + 战报，邀请好友裂变</div></div>
+    </div>
+
+  </div>
+</body>
+</html>

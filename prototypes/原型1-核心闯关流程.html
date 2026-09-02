@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>原型 1 · 核心闯关流程（MVP 闭环）— 阿衰闯关学习小程序</title>
+<style>
+  :root{
+    --yellow:#F2A900; --yellow-deep:#D18F00; --yellow-soft:#FFF4DC;
+    --green:#5BBF4A; --green-deep:#3E8E2F; --green-soft:#EAF7E6;
+    --red:#E85D5D; --red-deep:#C94A4A; --red-soft:#FDEBEB;
+    --blue:#3A9FE0; --blue-soft:#E8F3FB;
+    --bg:#FBF7EF; --card:#FFFFFF;
+    --ink:#333333; --ink-2:#8A8A8A; --line:#EDE6D8;
+    --shadow:0 4px 14px rgba(0,0,0,.06);
+    --shadow-btn:0 3px 0 rgba(0,0,0,.14);
+    --font-head:'ZCOOL KuaiLe','PingFang SC','Microsoft YaHei',sans-serif;
+    --font-body:'PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font-body);padding:32px 20px 60px}
+  .page-head{max-width:1180px;margin:0 auto 8px}
+  .page-head h1{font-family:var(--font-head);font-size:28px;color:var(--ink);letter-spacing:1px}
+  .page-head .sub{color:var(--ink-2);font-size:14px;margin-top:6px;line-height:1.7}
+  .page-head .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .badge{font-size:12px;padding:4px 12px;border-radius:999px;background:var(--yellow-soft);color:var(--yellow-deep);border:1px solid #F5DFA8;font-weight:600}
+  .badge.g{background:var(--green-soft);color:var(--green-deep);border-color:#CDE9C4}
+  .legend{max-width:1180px;margin:16px auto 28px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+  .legend b{color:var(--ink)}
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+  .grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:28px 24px}
+  .page-card{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .phone{width:100%;max-width:320px;border-radius:30px;border:6px solid #2E2E2E;background:#fff;overflow:hidden;box-shadow:0 16px 36px rgba(0,0,0,.14)}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;padding:8px 18px 6px;background:var(--card);font-size:12px;font-weight:600;color:var(--ink)}
+  .screen{height:600px;overflow-y:auto;background:var(--bg);scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  .tabbar{display:flex;justify-content:space-around;padding:8px 6px 10px;background:var(--card);border-top:1px solid var(--line);font-size:11px;color:var(--ink-2)}
+  .tabbar .t{display:flex;flex-direction:column;align-items:center;gap:2px}
+  .tabbar .t.on{color:var(--yellow-deep);font-weight:600}
+  .tabbar .t .ic{font-size:16px}
+  .page-label{width:100%;max-width:320px;text-align:center}
+  .page-label .pn{font-family:var(--font-head);font-size:16px;color:var(--ink)}
+  .page-label .pd{font-size:12px;color:var(--ink-2);margin-top:4px;line-height:1.6}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .btn{display:block;width:100%;padding:12px;border-radius:999px;border:none;font-size:15px;font-weight:600;font-family:var(--font-body);cursor:pointer;text-align:center}
+  .btn-yellow{background:var(--yellow);color:#fff;box-shadow:var(--shadow-btn)}
+  .btn-green{background:var(--green);color:#fff;box-shadow:var(--shadow-btn)}
+  .btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+  .btn-lg{padding:14px;font-size:16px}
+  .btn-sm{padding:9px 0;font-size:13px}
+  .mascot{width:46px;height:46px;flex:0 0 auto}
+  /* ---------- P1 首页 ---------- */
+  .home-head{display:flex;align-items:center;gap:10px;padding:14px 16px 8px}
+  .home-title{font-family:var(--font-head);font-size:19px;color:var(--ink)}
+  .home-sub{font-size:11px;color:var(--ink-2)}
+  .streak{margin-left:auto;background:var(--red-soft);color:var(--red-deep);font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px}
+  .xp-bar{display:flex;align-items:center;gap:8px;margin:8px 16px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px;box-shadow:var(--shadow)}
+  .xp-label{font-size:11px;color:var(--ink-2);flex:0 0 auto}
+  .xp-track{flex:1;height:8px;border-radius:999px;background:var(--yellow-soft);overflow:hidden}
+  .xp-fill{height:100%;border-radius:999px;background:var(--yellow)}
+  .xp-num{font-size:12px;font-weight:700;color:var(--yellow-deep);flex:0 0 auto}
+  .xp-lv{font-size:10px;font-weight:700;color:#fff;background:var(--yellow);border-radius:999px;padding:2px 8px;flex:0 0 auto}
+  .input-card{margin:10px 16px;padding:14px}
+  .input-label{font-size:13px;color:var(--ink);font-weight:600;margin-bottom:10px}
+  .input-box{background:var(--bg);border:1.5px solid #E8C96A;border-radius:10px;padding:12px;font-size:13px;color:var(--ink-2);line-height:1.5}
+  .chips{display:flex;gap:8px;margin-top:10px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{font-size:11px;padding:5px 11px;border-radius:999px;background:var(--yellow-soft);color:var(--yellow-deep);border:1px solid #F5DFA8;white-space:nowrap;flex:0 0 auto}
+  .rec-card{margin:10px 16px;padding:12px}
+  .rec-head{display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px}
+  .rec-more{margin-left:auto;font-size:11px;color:var(--ink-2);font-weight:400}
+  .rec-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+  .rec-row::-webkit-scrollbar{display:none}
+  .rec-item{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 4px;text-align:center;cursor:pointer}
+  .rec-item .rec-name{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rec-item .rec-count{font-size:10px;color:var(--ink-2);margin-top:4px}
+  .rec-item .rec-go{font-size:10px;color:var(--yellow-deep);margin-top:4px;font-weight:600}
+  .home-btn{margin:6px 16px}
+  .tip{font-size:11px;color:var(--ink-2);text-align:center;margin:8px 20px}
+  /* ---------- P2 生成中 ---------- */
+  .loading-screen{display:flex;flex-direction:column;align-items:center;padding:60px 24px 24px}
+  .loading-mascot{width:110px;height:110px}
+  .loading-title{font-family:var(--font-head);font-size:17px;color:var(--ink);margin-top:18px;text-align:center}
+  .loading-steps{width:100%;margin-top:26px;display:flex;flex-direction:column;gap:12px}
+  .step{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 14px}
+  .step.active{color:var(--ink);border-color:#F5DFA8;background:var(--yellow-soft)}
+  .step.done{color:var(--green-deep);border-color:#CDE9C4;background:var(--green-soft)}
+  .step-num{width:22px;height:22px;border-radius:50%;background:var(--line);color:var(--ink-2);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .step.active .step-num{background:var(--yellow);color:#fff}
+  .step.done .step-num{background:var(--green);color:#fff}
+  .loading-bar{width:100%;height:8px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:24px}
+  .loading-fill{height:100%;width:66%;border-radius:999px;background:var(--yellow);animation:load 1.4s ease-in-out infinite}
+  @keyframes load{0%{width:20%}50%{width:70%}100%{width:20%}}
+  .loading-cancel{width:100%;margin-top:18px}
+  /* ---------- P3/P4/P5 答题 ---------- */
+  .quiz-top{display:flex;align-items:center;gap:10px;padding:14px 16px 4px}
+  .quiz-progress{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--ink);flex:0 0 auto}
+  .quiz-progress b{color:var(--yellow-deep)}
+  .quiz-title{font-family:var(--font-head);font-size:15px;color:var(--ink);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .quiz-xp{font-size:12px;font-weight:700;color:var(--yellow-deep);flex:0 0 auto}
+  .quiz-progress-bar{display:flex;align-items:center;gap:6px;margin:10px 16px 0}
+  .progress-dots{flex:1;display:flex;gap:4px}
+  .pdot{flex:1;height:5px;border-radius:999px;background:var(--line)}
+  .pdot.done{background:var(--green)}
+  .pdot.on{background:var(--yellow)}
+  .quiz-card{margin:10px 16px;padding:16px}
+  .quiz-tags{display:flex;gap:8px;margin-bottom:12px}
+  .tag{font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600}
+  .tag-single{background:var(--blue-soft);color:var(--blue)}
+  .tag-multi{background:var(--yellow-soft);color:var(--yellow-deep)}
+  .tag-judge{background:var(--green-soft);color:var(--green-deep)}
+  .tag-easy{background:var(--green-soft);color:var(--green-deep)}
+  .tag-mid{background:var(--yellow-soft);color:var(--yellow-deep)}
+  .quiz-stem{font-size:16px;font-weight:600;color:var(--ink);line-height:1.6;margin-bottom:14px}
+  .quiz-hint{font-size:12px;color:var(--red);background:var(--red-soft);border-radius:8px;padding:6px 10px;margin-bottom:10px}
+  .options{display:flex;flex-direction:column;gap:10px}
+  .option{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--ink);line-height:1.5;background:var(--card)}
+  .option .key{width:24px;height:24px;border-radius:50%;background:var(--bg);border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--ink-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .option.sel{border-color:var(--yellow);background:var(--yellow-soft)}
+  .option.sel .key{background:var(--yellow);color:#fff;border-color:var(--yellow)}
+  .option.correct{border-color:var(--green);background:var(--green-soft)}
+  .option.correct .key{background:var(--green);color:#fff;border-color:var(--green)}
+  .option.wrong{border-color:var(--red);background:var(--red-soft)}
+  .option.wrong .key{background:var(--red);color:#fff;border-color:var(--red)}
+  .option .mark{margin-left:auto;font-size:14px;font-weight:700;flex:0 0 auto}
+  .option.correct .mark{color:var(--green-deep)}
+  .option.wrong .mark{color:var(--red-deep)}
+  .option .check{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;margin-left:auto}
+  .option.multi-sel{border-color:var(--yellow);background:var(--yellow-soft)}
+  .option.multi-sel .check{background:var(--yellow);border-color:var(--yellow)}
+  .option.multi-correct{border-color:var(--green);background:var(--green-soft)}
+  .option.multi-correct .check{background:var(--green);border-color:var(--green)}
+  .option.multi-wrong{border-color:var(--red);background:var(--red-soft)}
+  .option.multi-wrong .check{background:var(--red);border-color:var(--red)}
+  .quiz-btn{margin:0 16px}
+  /* 讲解内嵌（提交后出现在答题页内） */
+  .explain-card{margin:12px 16px;padding:14px}
+  .explain-head{font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+  .explain-head.ok{color:var(--green-deep)}
+  .explain-head.err{color:var(--red-deep)}
+  .explain-body{font-size:13px;color:var(--ink-2);line-height:1.7}
+  .explain-collapse{font-size:11px;color:var(--ink-2);text-align:center;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+  .fb-btn{margin:0 16px}
+  /* ---------- P6 通关结算 ---------- */
+  .win-screen{text-align:center;padding:30px 16px 16px}
+  .win-mascot{width:96px;height:96px;margin:0 auto}
+  .win-title{font-family:var(--font-head);font-size:24px;color:var(--ink);margin-top:8px}
+  .win-sub{font-size:13px;color:var(--ink-2);margin-top:4px}
+  .win-stats{display:flex;gap:10px;margin:20px 0}
+  .stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 4px;box-shadow:var(--shadow)}
+  .stat-num{font-size:18px;font-weight:700;color:var(--yellow-deep)}
+  .stat-label{font-size:11px;color:var(--ink-2);margin-top:2px}
+  .reward-card{margin:0 0 18px;padding:14px;display:flex;flex-direction:column;gap:8px}
+  .reward-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);background:var(--bg);border-radius:10px;padding:9px 12px}
+  .reward-item .r-ic{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;flex:0 0 auto}
+  .win-btn{margin-top:8px}
+  /* ---------- P7 复盘报告 ---------- */
+  .report-head{font-family:var(--font-head);font-size:18px;text-align:center;padding:16px 0 4px}
+  .report-sub{font-size:12px;color:var(--ink-2);text-align:center;margin-bottom:12px}
+  .ring-card{margin:0 16px 12px;padding:18px;text-align:center}
+  .ring{width:110px;height:110px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;background:conic-gradient(var(--green) 0 80%,var(--line) 80% 100%)}
+  .ring-in{width:82px;height:82px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring-num{font-size:24px;font-weight:700;color:var(--green-deep)}
+  .ring-label{font-size:11px;color:var(--ink-2)}
+  .sec-card{margin:0 16px 12px;padding:14px}
+  .sec-title{font-size:13px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .point-list{display:flex;flex-direction:column;gap:6px}
+  .point{font-size:12px;color:var(--ink-2);background:var(--bg);border-radius:8px;padding:7px 10px;line-height:1.5}
+  .summary-list{font-size:12px;color:var(--ink-2);line-height:1.8}
+  .report-btn{margin:4px 16px 12px}
+  /* ---------- P8 分享海报 ---------- */
+  .poster{margin:14px 20px;border-radius:16px;background:linear-gradient(160deg,#FFF4DC,#FFE9B8);border:1px solid #F5DFA8;padding:22px 18px;text-align:center}
+  .poster-top{font-family:var(--font-head);font-size:15px;color:var(--ink)}
+  .poster-data{font-size:12px;color:var(--yellow-deep);margin-top:8px;font-weight:600}
+  .poster-mascot{width:72px;height:72px;margin:12px auto}
+  .poster-quote{font-size:13px;color:var(--ink);font-weight:600;line-height:1.7;margin:6px 0}
+  .poster-code{width:88px;height:88px;margin:14px auto 8px;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-2);border:1px solid var(--line)}
+  .poster-brand{font-size:11px;color:var(--ink-2)}
+  .poster-btn{margin:12px 16px 8px}
+  @media (max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:700px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>原型 1 · 核心闯关流程（MVP 闭环）</h1>
+    <div class="sub">《阿衰闯关学习小程序》— 输入知识 → AI 出题 → 闯关答题（讲解内嵌）→ 通关结算 → 复盘报告 → 分享海报</div>
+    <div class="badges">
+      <span class="badge">P0 · MVP 核心闭环</span>
+      <span class="badge g">风格：克制版阿衰校园漫画风</span>
+    </div>
+  </div>
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--yellow)"></span>阿衰黄 · 主操作</span>
+    <span><span class="swatch" style="background:var(--green)"></span>成长绿 · 答对/成长</span>
+    <span><span class="swatch" style="background:var(--red)"></span>番茄红 · 答错/提醒</span>
+    <span><span class="swatch" style="background:var(--blue)"></span>天空蓝 · 信息</span>
+    <span><b>吉祥物</b>：原创阿衰风 Q 版学生（蘑菇头 + 黄卫衣）</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- ============ P1 首页输入 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="home-head">
+            <svg class="mascot" viewBox="0 0 80 80"><path d="M22 36 Q20 18 40 15 Q60 18 58 36 L58 33 Q58 22 40 19 Q22 22 22 33Z" fill="#5B4636"/><ellipse cx="40" cy="42" rx="20" ry="17" fill="#FFE0BD"/><circle cx="33" cy="40" r="3.4" fill="#333"/><circle cx="47" cy="40" r="3.4" fill="#333"/><path d="M34 50 Q40 55 46 50" stroke="#333" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M21 56 Q21 74 40 74 Q59 74 59 56 L59 50 Q40 57 21 50Z" fill="#F2A900"/></svg>
+            <div>
+              <div class="home-title">阿衰闯关</div>
+              <div class="home-sub">万物皆可闯关</div>
+            </div>
+            <div class="streak">🔥 连续 7 天</div>
+          </div>
+          <div class="xp-bar">
+            <span class="xp-label">经验值</span>
+            <div class="xp-track"><div class="xp-fill" style="width:64%"></div></div>
+            <span class="xp-num">1280</span>
+            <span class="xp-lv">Lv.5</span>
+          </div>
+          <div class="card input-card">
+            <div class="input-label">想学点什么？输入一句话，AI 帮你出题</div>
+            <div class="input-box">例如：什么是 RAG？它和传统搜索有什么区别…</div>
+            <div class="chips">
+              <span class="chip">什么是 RAG</span>
+              <span class="chip">快速排序</span>
+              <span class="chip">光合作用</span>
+            </div>
+          </div>
+          <div class="card rec-card">
+            <div class="rec-head">🔥 大家都在闯 <span class="rec-more">更多 ›</span></div>
+            <div class="rec-row">
+              <div class="rec-item"><div class="rec-name">量子计算</div><div class="rec-count">3.2w 人已闯</div><div class="rec-go">去闯关 ›</div></div>
+              <div class="rec-item"><div class="rec-name">机器学习</div><div class="rec-count">1.8w 人已闯</div><div class="rec-go">去闯关 ›</div></div>
+              <div class="rec-item"><div class="rec-name">区块链</div><div class="rec-count">9.6k 人已闯</div><div class="rec-go">去闯关 ›</div></div>
+            </div>
+          </div>
+          <div class="home-btn"><button class="btn btn-yellow btn-lg">开始闯关</button></div>
+          <div class="tip">AI 会自动联网检索知识，生成 5 道闯关题</div>
+        </div>
+        <div class="tabbar">
+          <div class="t on"><span class="ic">🏠</span>首页</div>
+          <div class="t"><span class="ic">🎯</span>闯关</div>
+          <div class="t"><span class="ic">📊</span>报告</div>
+          <div class="t"><span class="ic">👤</span>我的</div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">01 · 首页输入</div><div class="pd">输入框 + 示例话题（一行）+ 推荐知识（一行，点击即答题）</div></div>
+    </div>
+
+    <!-- ============ P2 AI 生成中 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen loading-screen">
+          <svg class="loading-mascot" viewBox="0 0 120 120"><path d="M30 52 Q28 26 60 22 Q92 26 90 52 L90 48 Q90 32 60 28 Q30 32 30 48Z" fill="#5B4636"/><ellipse cx="60" cy="60" rx="30" ry="26" fill="#FFE0BD"/><path d="M46 56 Q52 60 60 56" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M74 56 Q68 60 60 56" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M52 72 Q60 78 68 72" stroke="#333" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M30 80 Q30 108 60 108 Q90 108 90 80 L90 72 Q60 82 30 72Z" fill="#F2A900"/><path d="M66 74 Q72 84 68 92" stroke="#7FB8E8" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/></svg>
+          <div class="loading-title">阿衰正在把知识变成关卡…</div>
+          <div class="loading-steps">
+            <div class="step done"><span class="step-num">✓</span>联网检索知识</div>
+            <div class="step active"><span class="step-num">2</span>AI 生成题目</div>
+            <div class="step"><span class="step-num">3</span>生成知识讲解</div>
+          </div>
+          <div class="loading-bar"><div class="loading-fill"></div></div>
+          <div class="loading-cancel"><button class="btn btn-ghost btn-sm">取消</button></div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">02 · AI 生成中</div><div class="pd">吉祥物思考动画 + 三步生成进度，明确 loading 状态</div></div>
+    </div>
+
+    <!-- ============ P3 闯关答题 · 单选（答题中） ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="quiz-top">
+            <div class="quiz-progress"><b>1</b>/5</div>
+            <div class="quiz-title">RAG 入门闯关</div>
+            <div class="quiz-xp">+20 XP</div>
+          </div>
+          <div class="quiz-progress-bar">
+            <div class="progress-dots"><div class="pdot on"></div><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div></div>
+          </div>
+          <div class="card quiz-card">
+            <div class="quiz-tags"><span class="tag tag-single">单选</span><span class="tag tag-easy">简单</span></div>
+            <div class="quiz-stem">RAG 的全称是什么？</div>
+            <div class="options">
+              <div class="option sel"><span class="key">A</span>Retrieval-Augmented Generation</div>
+              <div class="option"><span class="key">B</span>Random Access Graph</div>
+              <div class="option"><span class="key">C</span>Rapid AI Generation</div>
+              <div class="option"><span class="key">D</span>Recurrent Attention Grid</div>
+            </div>
+          </div>
+          <div class="quiz-btn"><button class="btn btn-yellow">提交答案</button></div>
+        </div>
+        <div class="tabbar">
+          <div class="t on"><span class="ic">🏠</span>首页</div>
+          <div class="t"><span class="ic">🎯</span>闯关</div>
+          <div class="t"><span class="ic">📊</span>报告</div>
+          <div class="t"><span class="ic">👤</span>我的</div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">03 · 闯关答题 · 单选（答题中）</div><div class="pd">紧凑进度点 + 选项选中态，提交后讲解就地展开</div></div>
+    </div>
+
+    <!-- ============ P4 提交后 · 答对（讲解内嵌） ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="quiz-top">
+            <div class="quiz-progress"><b>1</b>/5</div>
+            <div class="quiz-title">RAG 入门闯关</div>
+            <div class="quiz-xp">+20 XP</div>
+          </div>
+          <div class="quiz-progress-bar">
+            <div class="progress-dots"><div class="pdot done"></div><div class="pdot on"></div><div class="pdot"></div><div class="pdot"></div><div class="pdot"></div></div>
+          </div>
+          <div class="card quiz-card">
+            <div class="quiz-tags"><span class="tag tag-single">单选</span><span class="tag tag-easy">简单</span></div>
+            <div class="quiz-stem">RAG 的全称是什么？</div>
+            <div class="options">
+              <div class="option correct"><span class="key">A</span>Retrieval-Augmented Generation<span class="mark">✓</span></div>
+              <div class="option"><span class="key">B</span>Random Access Graph</div>
+              <div class="option"><span class="key">C</span>Rapid AI Generation</div>
+              <div class="option"><span class="key">D</span>Recurrent Attention Grid</div>
+            </div>
+          </div>
+          <div class="card explain-card">
+            <div class="explain-head ok">✅ 答对啦！+20 XP · +10 金币</div>
+            <div class="explain-body">RAG（Retrieval-Augmented Generation，检索增强生成）是一种结合「检索」与「生成」的技术：先从知识库中检索相关内容，再交给大模型生成答案，能有效减少幻觉。</div>
+            <div class="explain-collapse">收起讲解 ▲</div>
+          </div>
+          <div class="fb-btn"><button class="btn btn-green">下一题</button></div>
+        </div>
+        <div class="tabbar">
+          <div class="t on"><span class="ic">🏠</span>首页</div>
+          <div class="t"><span class="ic">🎯</span>闯关</div>
+          <div class="t"><span class="ic">📊</span>报告</div>
+          <div class="t"><span class="ic">👤</span>我的</div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">04 · 提交后 · 答对（讲解内嵌）</div><div class="pd">正确答案高亮 + 讲解卡片就地展开，不跳转新页面</div></div>
+    </div>
+
+    <!-- ============ P5 提交后 · 答错（讲解内嵌 · 多选） ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="quiz-top">
+            <div class="quiz-progress"><b>2</b>/5</div>
+            <div class="quiz-title">RAG 入门闯关</div>
+            <div class="quiz-xp">+30 XP</div>
+          </div>
+          <div class="quiz-progress-bar">
+            <div class="progress-dots"><div class="pdot done"></div><div class="pdot done"></div><div class="pdot on"></div><div class="pdot"></div><div class="pdot"></div></div>
+          </div>
+          <div class="card quiz-card">
+            <div class="quiz-tags"><span class="tag tag-multi">多选</span><span class="tag tag-mid">中等</span></div>
+            <div class="quiz-stem">以下哪些属于 RAG 的核心组成部分？</div>
+            <div class="options">
+              <div class="option multi-correct"><span class="key">A</span>向量数据库<span class="check">✓</span></div>
+              <div class="option multi-wrong"><span class="key">B</span>检索器（Retriever）<span class="check">✕</span></div>
+              <div class="option multi-correct"><span class="key">C</span>生成模型（LLM）<span class="check">✓</span></div>
+              <div class="option"><span class="key">D</span>区块链账本<span class="check"></span></div>
+            </div>
+          </div>
+          <div class="card explain-card">
+            <div class="explain-head err">❌ 哎哟，答错了 · 正确答案是 A、C</div>
+            <div class="explain-body">RAG 的核心由「检索器（Retriever）+ 生成模型（LLM）」构成，向量数据库用于存储和检索知识。区块链账本与 RAG 无关，是干扰项。已自动记入错题本。</div>
+            <div class="explain-collapse">收起讲解 ▲</div>
+          </div>
+          <div class="fb-btn"><button class="btn btn-yellow">下一题</button></div>
+        </div>
+        <div class="tabbar">
+          <div class="t on"><span class="ic">🏠</span>首页</div>
+          <div class="t"><span class="ic">🎯</span>闯关</div>
+          <div class="t"><span class="ic">📊</span>报告</div>
+          <div class="t"><span class="ic">👤</span>我的</div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">05 · 提交后 · 答错（讲解内嵌 · 多选）</div><div class="pd">错选红标 + 漏选绿标 + 正确答案提示，讲解就地展开</div></div>
+    </div>
+
+    <!-- ============ P6 通关结算 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen win-screen">
+          <svg class="win-mascot" viewBox="0 0 120 120"><path d="M30 52 Q28 26 60 22 Q92 26 90 52 L90 48 Q90 32 60 28 Q30 32 30 48Z" fill="#5B4636"/><ellipse cx="60" cy="60" rx="30" ry="26" fill="#FFE0BD"/><path d="M46 56 Q52 60 60 56" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M74 56 Q68 60 60 56" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M50 70 Q60 80 70 70" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M30 80 Q30 108 60 108 Q90 108 90 80 L90 72 Q60 82 30 72Z" fill="#F2A900"/><path d="M96 26 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z" fill="#FFD34D"/><path d="M24 20 l2.5 7 7 2.5 -7 2.5 -2.5 7 -2.5 -7 -7 -2.5 7 -2.5z" fill="#FFD34D"/></svg>
+          <div class="win-title">通关啦！</div>
+          <div class="win-sub">RAG 入门闯关 · 5 题完成</div>
+          <div class="win-stats">
+            <div class="stat"><div class="stat-num">4/5</div><div class="stat-label">答对题数</div></div>
+            <div class="stat"><div class="stat-num">80%</div><div class="stat-label">正确率</div></div>
+            <div class="stat"><div class="stat-num">2:35</div><div class="stat-label">用时</div></div>
+          </div>
+          <div class="card reward-card">
+            <div class="reward-item"><span class="r-ic" style="background:var(--yellow)">⚡</span>经验值 +120 XP</div>
+            <div class="reward-item"><span class="r-ic" style="background:var(--yellow-deep)">🪙</span>金币 +50</div>
+            <div class="reward-item"><span class="r-ic" style="background:var(--green)">🏅</span>解锁徽章「初出茅庐」</div>
+          </div>
+          <div class="win-btn"><button class="btn btn-yellow">查看复盘报告</button></div>
+          <div style="margin-top:8px"><button class="btn btn-ghost btn-sm">再闯一关</button></div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">06 · 通关结算</div><div class="pd">吉祥物庆祝 + 答题统计 + XP/金币/徽章即时奖励</div></div>
+    </div>
+
+    <!-- ============ P7 复盘报告 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="report-head">复盘报告</div>
+          <div class="report-sub">本次闯关 · RAG 入门</div>
+          <div class="card ring-card">
+            <div class="ring"><div class="ring-in"><div class="ring-num">80%</div><div class="ring-label">正确率</div></div></div>
+            <div style="font-size:12px;color:var(--ink-2);margin-top:10px">掌握度评估 · 4 个知识点已掌握</div>
+          </div>
+          <div class="card sec-card">
+            <div class="sec-title">✅ 掌握较好</div>
+            <div class="point-list">
+              <div class="point">RAG 的基本定义与全称</div>
+              <div class="point">检索与生成的结合方式</div>
+            </div>
+          </div>
+          <div class="card sec-card">
+            <div class="sec-title">⚠️ 薄弱知识点</div>
+            <div class="point-list">
+              <div class="point">RAG 与搜索引擎的边界</div>
+            </div>
+          </div>
+          <div class="card sec-card">
+            <div class="sec-title">📝 三句知识总结</div>
+            <div class="summary-list">1. RAG 让大模型先检索再回答，减少幻觉。<br>2. 检索器负责找资料，生成器负责组织答案。<br>3. 它常用于企业私有知识问答。</div>
+          </div>
+          <div class="card sec-card">
+            <div class="sec-title">💡 复习建议</div>
+            <div class="summary-list">建议 3 天后重温「RAG 与搜索引擎」相关题目，错题已加入错题本。</div>
+          </div>
+          <div class="report-btn"><button class="btn btn-yellow">生成分享海报</button></div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">07 · 复盘报告</div><div class="pd">正确率环形图 + 掌握/薄弱点 + 三句总结 + 复习建议</div></div>
+    </div>
+
+    <!-- ============ P8 分享海报 ============ -->
+    <div class="page-card">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span>▂▄▆ ▮</span></div>
+        <div class="screen">
+          <div class="report-head">分享学习成果</div>
+          <div class="report-sub">生成一张精美海报，分享给好友</div>
+          <div class="poster">
+            <div class="poster-top">今天我又闯过一个知识关卡！</div>
+            <div class="poster-data">正确率 80% · 掌握 4 个知识点</div>
+            <svg class="poster-mascot" viewBox="0 0 80 80"><path d="M22 36 Q20 18 40 15 Q60 18 58 36 L58 33 Q58 22 40 19 Q22 22 22 33Z" fill="#5B4636"/><ellipse cx="40" cy="42" rx="20" ry="17" fill="#FFE0BD"/><path d="M32 40 Q36 36 40 40 Q44 36 48 40" stroke="#333" stroke-width="2.6" fill="none" stroke-linecap="round"/><path d="M34 50 Q40 56 46 50" stroke="#333" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M21 56 Q21 74 40 74 Q59 74 59 56 L59 50 Q40 57 21 50Z" fill="#F2A900"/></svg>
+            <div class="poster-quote">「把知识做成关卡，记忆会更深。」</div>
+            <div class="poster-code">小程序码</div>
+            <div class="poster-brand">阿衰闯关学习 · 扫码一起闯关</div>
+          </div>
+          <div class="poster-btn"><button class="btn btn-yellow">保存海报</button></div>
+          <div style="margin:0 16px 12px"><button class="btn btn-green">转发给好友</button></div>
+        </div>
+      </div>
+      <div class="page-label"><div class="pn">08 · 分享海报</div><div class="pd">金句 + 学习数据 + 小程序码，Canvas 拼接一键保存/转发</div></div>
+    </div>
+
+  </div>
+</body>
+</html>
