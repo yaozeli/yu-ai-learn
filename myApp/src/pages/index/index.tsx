@@ -1,237 +1,349 @@
-import { Button, Input, View, Text } from '@tarojs/components'
-import Taro, { useLoad } from '@tarojs/taro'
-import { useEffect, useMemo, useState } from 'react'
-import { generateQuiz, generateReport, type QuizApiResponse, type ReportApiResponse } from '../../services/api'
+import { Button, Input, Text, View } from '@tarojs/components'
+import Taro, { useDidShow } from '@tarojs/taro'
+import { useEffect, useRef, useState } from 'react'
+import {
+  PENDING_QUIZ_KEY,
+  completeQuiz,
+  ensureLogin,
+  fetchQuizReport,
+  generateQuiz,
+  getHotTopics,
+  getQuizDetail,
+  getQuizInProgress,
+  getUserOverview,
+  submitQuizAnswer,
+  type AnswerFeedback,
+  type CompleteResult,
+  type HotTopicItem,
+  type InProgressItem,
+  type QuizApiQuestion,
+  type QuizApiResponse,
+  type ReportData,
+  type UserOverview,
+  type UserProfile
+} from '../../services/api'
+import { difficultyText, formatMs } from '../../utils/format'
 import './index.scss'
 
-type QuestionType = 'single' | 'multi' | 'judge'
-
-type Question = {
-  id: string | number
-  type: QuestionType
-  difficulty: '简单' | '中等' | '困难'
-  title: string
-  options: { key: string; label: string }[]
-  answer: string[]
-  explanation: string
-}
-
-type Screen = 'home' | 'loading' | 'quiz' | 'result' | 'report' | 'poster'
-
-const optionKeys = ['A', 'B', 'C', 'D']
+type QuestionType = 'single' | 'multiple' | 'judge'
+type Screen = 'home' | 'loading' | 'quiz' | 'result' | 'report'
 
 const demoTopics = ['什么是 RAG', '快速排序', '光合作用']
+
+interface LocalAnswer {
+  question_id: string
+  selected_answers: string[]
+  is_correct: boolean
+}
+
+const questionTypeText: Record<QuestionType, string> = {
+  single: '单选题',
+  multiple: '多选题',
+  judge: '判断题'
+}
 
 export default function Index() {
   const [screen, setScreen] = useState<Screen>('home')
   const [loadingStep, setLoadingStep] = useState(1)
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [quizPayload, setQuizPayload] = useState<QuizApiResponse | null>(null)
-  const [reportData, setReportData] = useState<ReportApiResponse | null>(null)
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([])
+
+  // quiz payload state
+  const [quizId, setQuizId] = useState('')
+  const [quizTitle, setQuizTitle] = useState('')
+  const [quizTopic, setQuizTopic] = useState('')
+  const [questions, setQuestions] = useState<QuizApiQuestion[]>([])
+  const [current, setCurrent] = useState(0)
+  const [isReview, setIsReview] = useState(false)
+
+  // answering state
+  const [selected, setSelected] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
-  const [currentTopic, setCurrentTopic] = useState(demoTopics[0])
+  const [submitting, setSubmitting] = useState(false)
+  const [feedback, setFeedback] = useState<AnswerFeedback | null>(null)
+  const [answers, setAnswers] = useState<LocalAnswer[]>([])
+  const questionStartedAt = useRef<Record<string, number>>({})
+
+  // result / report state
+  const [result, setResult] = useState<CompleteResult | null>(null)
+  const [completing, setCompleting] = useState(false)
+  const [report, setReport] = useState<ReportData | null>(null)
+  const [reportLoading, setReportLoading] = useState(false)
+
+  // home state (all real data)
+  const [user, setUser] = useState<UserProfile | null>(null)
+  const [overview, setOverview] = useState<UserOverview | null>(null)
+  const [inProgress, setInProgress] = useState<InProgressItem[]>([])
+  const [hotTopics, setHotTopics] = useState<HotTopicItem[] | null>(null)
   const [topicInput, setTopicInput] = useState('')
-  const [answers, setAnswers] = useState<Array<{ questionId: string | number; selected: string[]; isCorrect: boolean }>>([])
+  const [generating, setGenerating] = useState(false)
 
-  useLoad(() => {
-    console.log('Page loaded')
-  })
+  const currentQuestion = questions[current]
 
-  const currentQuestion = questions[currentIndex]
+  const markStarted = (questionId: string) => {
+    if (!questionStartedAt.current[questionId]) {
+      questionStartedAt.current[questionId] = Date.now()
+    }
+  }
 
+  // ---------- loading animation ----------
   useEffect(() => {
     if (screen !== 'loading') return undefined
-
-    const secondStepTimer = setTimeout(() => setLoadingStep(2), 700)
-    const thirdStepTimer = setTimeout(() => setLoadingStep(3), 1400)
-
+    const step2 = setTimeout(() => setLoadingStep(2), 700)
+    const step3 = setTimeout(() => setLoadingStep(3), 1500)
     return () => {
-      clearTimeout(secondStepTimer)
-      clearTimeout(thirdStepTimer)
+      clearTimeout(step2)
+      clearTimeout(step3)
     }
   }, [screen])
 
-  const stats = useMemo(() => {
-    const total = questions.length
-    const correct = answers.filter((item) => item.isCorrect).length
-    return {
-      total,
-      correct,
-      percent: Math.round((correct / total) * 100),
-      xp: 20 * correct + 30 * Math.max(0, total - correct),
-      coins: 10 * correct + 5 * Math.max(0, total - correct)
-    }
-  }, [answers, questions.length])
-
-  const selectTopic = (topic: string) => {
-    setTopicInput(topic)
-    setCurrentTopic(topic)
+  // ---------- home data ----------
+  const refreshHome = () => {
+    ensureLogin()
+      .then(setUser)
+      .catch(() => setUser(null))
+    getQuizInProgress()
+      .then((data) => setInProgress(data.items || []))
+      .catch(() => undefined)
+    getUserOverview()
+      .then(setOverview)
+      .catch(() => undefined)
+    getHotTopics()
+      .then((data) => setHotTopics(data.items || []))
+      .catch(() => setHotTopics([]))
   }
 
-  const startTopic = async (topic: string) => {
-    console.log('[quiz] start topic', topic)
-    selectTopic(topic)
-    setCurrentTopic(topic)
-    setScreen('loading')
-    setLoadingStep(1)
-    setSelectedKeys([])
-    setSubmitted(false)
-    setCurrentIndex(0)
-    setAnswers([])
-    setReportData(null)
-
-    try {
-      const [quiz] = await Promise.all([
-        generateQuiz(topic),
-        new Promise((resolve) => setTimeout(resolve, 1800))
-      ])
-      const normalizedQuestions: Question[] = quiz.questions.map((question) => ({
-        id: question.id,
-        type: (question.type === 'multiple' ? 'multi' : question.type) as QuestionType,
-        difficulty: '简单' as const,
-        title: question.stem,
-        options: question.options.map((option, index) => ({
-          key: option.key || optionKeys[index],
-          label: option.text
-        })),
-        answer: question.answer,
-        explanation: question.explanation
-      }))
-
-      setQuizPayload(quiz)
-      setQuestions(normalizedQuestions)
-      setCurrentTopic(quiz.title)
-      setLoadingStep(3)
-      await new Promise((resolve) => setTimeout(resolve, 350))
-      setScreen('quiz')
-    } catch (error) {
-      setScreen('home')
-      Taro.showToast({ title: error instanceof Error ? error.message : '题目生成失败', icon: 'none' })
-    }
-  }
-
-  const toggleOption = (key: string) => {
-    if (submitted) return
-
-    if (currentQuestion.type === 'single') {
-      setSelectedKeys([key])
+  useDidShow(() => {
+    const pending = Taro.getStorageSync<string>(PENDING_QUIZ_KEY)
+    if (pending) {
+      Taro.removeStorageSync(PENDING_QUIZ_KEY)
+      void resumeQuiz(pending)
       return
     }
+    refreshHome()
+  })
 
-    setSelectedKeys((prev) => {
-      if (prev.includes(key)) {
-        return prev.filter((item) => item !== key)
-      }
-      return [...prev, key]
-    })
+  // ---------- navigation helpers ----------
+  const goHomeTab = () => {
+    Taro.switchTab({ url: '/pages/history/index' })
   }
 
-  const submitAnswer = () => {
-    if (!selectedKeys.length) return
-
-    const isCorrect =
-      currentQuestion.answer.length === selectedKeys.length &&
-      currentQuestion.answer.every((item) => selectedKeys.includes(item)) &&
-      selectedKeys.every((item) => currentQuestion.answer.includes(item))
-
-    setAnswers((prev) => [...prev, {
-      questionId: currentQuestion.id,
-      selected: [...selectedKeys],
-      isCorrect
-    }])
-    setSubmitted(true)
-  }
-
-  const nextQuestion = () => {
-    if (currentIndex >= questions.length - 1) {
-      if (quizPayload) {
-        generateReport(
-          quizPayload,
-          answers.map((answer) => ({
-            question_id: String(answer.questionId),
-            selected_answers: answer.selected,
-            is_correct: answer.isCorrect,
-            duration_ms: 0
-          }))
-        )
-          .then(setReportData)
-          .catch(() => Taro.showToast({ title: '复盘报告生成失败', icon: 'none' }))
-      }
-      setScreen('result')
-      return
-    }
-
-    setCurrentIndex((prev) => prev + 1)
-    setSelectedKeys([])
-    setSubmitted(false)
-  }
-
-  const openReport = () => setScreen('report')
-  const openPoster = () => setScreen('poster')
   const reset = () => {
     setScreen('home')
-    setCurrentIndex(0)
-    setSelectedKeys([])
+    setQuizId('')
+    setQuizTitle('')
+    setQuizTopic('')
+    setQuestions([])
+    setCurrent(0)
+    setIsReview(false)
+    setSelected([])
     setSubmitted(false)
+    setFeedback(null)
     setAnswers([])
-    setQuizPayload(null)
-    setReportData(null)
+    setResult(null)
+    setReport(null)
+    setReportLoading(false)
     setLoadingStep(1)
-    setCurrentTopic(demoTopics[0])
     setTopicInput('')
+    refreshHome()
   }
 
-  const renderOption = (option: { key: string; label: string }) => {
-    const isSelected = selectedKeys.includes(option.key)
-    const isCorrect = currentQuestion.answer.includes(option.key)
-    const answerState = submitted
+  // ---------- start / resume ----------
+  const startTopic = async (topic: string) => {
+    if (!topic.trim() || generating) return
+    setTopicInput(topic.trim())
+    setScreen('loading')
+    setLoadingStep(1)
+    setGenerating(true)
+    try {
+      const user = await ensureLogin()
+      setUser(user)
+      const [quiz] = await Promise.all([
+        generateQuiz(topic.trim()),
+        new Promise((resolve) => setTimeout(resolve, 1800))
+      ])
+      applyGeneratedQuiz(quiz)
+    } catch (error) {
+      setScreen('home')
+      Taro.showToast({ title: error instanceof Error ? error.message : '题目生成失败，请重试', icon: 'none' })
+    } finally {
+      setGenerating(false)
+    }
+  }
 
-    let className = 'option'
-    if (isSelected && !answerState) className += ' sel'
-    if (answerState && isCorrect) className += ' correct'
-    if (answerState && isSelected && !isCorrect) className += ' wrong'
+  const applyGeneratedQuiz = (quiz: QuizApiResponse) => {
+    setQuizId(quiz.quiz_id)
+    setQuizTitle(quiz.title)
+    setQuizTopic(quiz.user_input || quiz.title)
+    setQuestions(quiz.questions)
+    setIsReview(false)
+    setAnswers([])
+    setReport(null)
+    setResult(null)
+    setCurrent(0)
+    setSelected([])
+    setSubmitted(false)
+    setFeedback(null)
+    setLoadingStep(3)
+    questionStartedAt.current = {}
+    if (quiz.questions[0]) markStarted(quiz.questions[0].id)
+    setTimeout(() => setScreen('quiz'), 300)
+  }
 
-    return (
-      <View
-        key={option.key}
-        className={className}
-        onClick={() => toggleOption(option.key)}
-      >
-        <Text className='key'>{option.key}</Text>
-        <Text>{option.label}</Text>
-        {answerState && isCorrect && <Text className='mark'>✓</Text>}
-        {answerState && isSelected && !isCorrect && <Text className='mark'>✕</Text>}
-      </View>
+  const resumeQuiz = async (quizId: string) => {
+    try {
+      const detail = await getQuizDetail(quizId)
+      if (detail.status === 'completed') {
+        Taro.showToast({ title: '该闯关已完成，可在历史记录中查看', icon: 'none' })
+        return
+      }
+      const answered = new Set(detail.answers.map((a) => a.question_id))
+      const firstUnanswered = detail.questions.findIndex((q) => !answered.has(q.id))
+      const startAt = detail.questions.length > 0 ? (firstUnanswered >= 0 ? firstUnanswered : 0) : 0
+      setQuizId(detail.id)
+      setQuizTitle(detail.title)
+      setQuizTopic(detail.topic)
+      setQuestions(detail.questions)
+      setIsReview(detail.review)
+      setAnswers(
+        detail.answers.map((a) => ({
+          question_id: a.question_id,
+          selected_answers: a.selected_answers,
+          is_correct: a.is_correct
+        }))
+      )
+      setCurrent(startAt)
+      setSelected([])
+      setSubmitted(false)
+      setFeedback(null)
+      setResult(null)
+      setReport(detail.report && detail.report.status === 'completed' ? detail.report : null)
+      questionStartedAt.current = {}
+      if (detail.questions[startAt]) markStarted(detail.questions[startAt].id)
+      setScreen('quiz')
+    } catch (error) {
+      Taro.showToast({ title: error instanceof Error ? error.message : '恢复闯关失败', icon: 'none' })
+    }
+  }
+
+  const continueLatest = () => {
+    const latest = inProgress[0]
+    if (!latest) {
+      Taro.showToast({ title: '没有进行中的闯关', icon: 'none' })
+      return
+    }
+    void resumeQuiz(latest.id)
+  }
+
+  // ---------- answering ----------
+  const answerCount = (questionId: string) => answers.find((a) => a.question_id === questionId)
+
+  const toggleOption = (key: string) => {
+    if (submitted || submitting || !currentQuestion) return
+    if (currentQuestion.type === 'single' || currentQuestion.type === 'judge') {
+      setSelected([key])
+      return
+    }
+    setSelected((prev) =>
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
     )
   }
 
-  const questionTypeText: Record<QuestionType, string> = {
-    single: '单选',
-    multi: '多选',
-    judge: '判断'
+  const onSubmitAnswer = async () => {
+    if (!selected.length || !quizId || !currentQuestion || submitting) return
+    const durationMs = Math.max(
+      0,
+      Math.floor(Date.now() - (questionStartedAt.current[currentQuestion.id] || Date.now()))
+    )
+    setSubmitting(true)
+    try {
+      const fb = await submitQuizAnswer(quizId, currentQuestion.id, selected, durationMs)
+      setAnswers((prev) => [
+        ...prev.filter((a) => a.question_id !== currentQuestion.id),
+        { question_id: currentQuestion.id, selected_answers: selected, is_correct: fb.is_correct }
+      ])
+      setFeedback(fb)
+      setSubmitted(true)
+    } catch (error) {
+      Taro.showToast({ title: error instanceof Error ? error.message : '提交失败，请重试', icon: 'none' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const nextQuestion = async () => {
+    if (!quizId) return
+    if (current >= questions.length - 1) {
+      setCompleting(true)
+      try {
+        const res = await completeQuiz(quizId)
+        setResult(res)
+        setScreen('result')
+      } catch (error) {
+        Taro.showToast({ title: error instanceof Error ? error.message : '结算失败，请重试', icon: 'none' })
+      } finally {
+        setCompleting(false)
+      }
+      return
+    }
+    const nextIndex = current + 1
+    const nextQuestion = questions[nextIndex]
+    if (nextQuestion) markStarted(nextQuestion.id)
+    setCurrent(nextIndex)
+    setSelected([])
+    setSubmitted(false)
+    setFeedback(null)
+  }
+
+  const openReport = async () => {
+    if (!quizId || reportLoading) return
+    setReportLoading(true)
+    try {
+      const data = await fetchQuizReport(quizId)
+      setReport(data)
+      setScreen('report')
+    } catch (error) {
+      Taro.showToast({ title: error instanceof Error ? error.message : '报告生成失败，请稍后重试', icon: 'none' })
+    } finally {
+      setReportLoading(false)
+    }
+  }
+
+  const renderOptionState = (key: string) => {
+    const isSelected = selected.includes(key)
+    let className = 'option'
+    if (isSelected && !submitted) className += ' sel'
+    if (submitted) {
+      if (feedback && feedback.correct_answers.includes(key)) className += ' correct'
+      else if (isSelected) className += ' wrong'
+    }
+    return className
   }
 
   const renderHome = () => (
     <View className='screen-shell'>
       <View className='home-head'>
         <View className='mascot-wrap'>🐼</View>
-        <View>
-          <Text className='home-title'>阿衰闯关</Text>
-          <Text className='home-sub'>万物皆可闯关</Text>
+        <View className='home-head-text'>
+          <Text className='home-title'>阿衰闯关学习</Text>
+          <Text className='home-sub'>{user?.nickname ? `Hi，${user.nickname}，今天想闯哪一关？` : '万物皆可闯关'}</Text>
         </View>
-        <View className='streak'>🔥 连续 7 天</View>
       </View>
 
-      <View className='xp-bar'>
-        <Text className='xp-label'>经验值</Text>
-        <View className='xp-track'>
-          <View className='xp-fill' style='width:64%' />
+      {inProgress.length > 0 && (
+        <View className='card continue-card'>
+          <View className='continue-head'>
+            <Text className='continue-title'>🎯 有未完成的闯关</Text>
+            <Text className='continue-go' onClick={continueLatest}>继续闯关 ›</Text>
+          </View>
+          <Text className='continue-sub'>{inProgress[0].title || inProgress[0].topic}</Text>
+          <View className='continue-progress'>
+            <View
+              className='continue-fill'
+              style={`width:${Math.min(100, Math.round((inProgress[0].answered_count / Math.max(1, inProgress[0].question_count)) * 100))}%`}
+            />
+          </View>
+          <Text className='continue-meta'>已答 {inProgress[0].answered_count}/{inProgress[0].question_count} 题</Text>
         </View>
-        <Text className='xp-num'>1280</Text>
-        <Text className='xp-lv'>Lv.5</Text>
-      </View>
+      )}
 
       <View className='card input-card'>
         <Text className='input-label'>想学点什么？输入一句话，AI 帮你出题</Text>
@@ -243,61 +355,69 @@ export default function Index() {
         />
         <View className='chips'>
           {demoTopics.map((topic) => (
-            <View key={topic} className='chip' onClick={() => selectTopic(topic)}>
+            <View key={topic} className='chip' onClick={() => setTopicInput(topic)}>
               {topic}
             </View>
           ))}
         </View>
       </View>
 
-      <View className='card rec-card'>
-        <View className='rec-head'>
-          <Text>🔥 大家都在闯</Text>
-          <Text className='rec-more'>更多 ›</Text>
+      {hotTopics !== null && (
+        <View className='card hot-card'>
+          <View className='hot-head'>
+            <Text className='hot-title'>🔥 大家都在问</Text>
+            <Text className='hot-sub'>按真实闯关次数统计</Text>
+          </View>
+          {hotTopics.length === 0 ? (
+            <Text className='hot-empty'>
+              还没有热门话题——完成一次闯关后，这里会统计大家真实在学的内容。
+            </Text>
+          ) : (
+            hotTopics.map((item, index) => (
+              <View
+                key={`${item.topic}-${index}`}
+                className='hot-row'
+                onClick={() => void startTopic(item.topic)}
+              >
+                <Text className={`hot-rank ${index < 3 ? `rank-${index + 1}` : ''}`}>
+                  {index < 3 ? ['🥇', '🥈', '🥉'][index] : index + 1}
+                </Text>
+                <Text className='hot-topic'>{item.topic}</Text>
+                <Text className='hot-count'>{item.run_count} 次闯关</Text>
+                <Text className='hot-go'>去闯关 ›</Text>
+              </View>
+            ))
+          )}
         </View>
-        <View className='rec-row'>
-          <View className='rec-item' onClick={() => startTopic('量子计算')}>
-            <Text className='rec-name'>量子计算</Text>
-            <Text className='rec-count'>3.2w 人已闯</Text>
-            <Text className='rec-go'>去闯关 ›</Text>
-          </View>
-          <View className='rec-item' onClick={() => startTopic('机器学习')}>
-            <Text className='rec-name'>机器学习</Text>
-            <Text className='rec-count'>1.8w 人已闯</Text>
-            <Text className='rec-go'>去闯关 ›</Text>
-          </View>
-          <View className='rec-item' onClick={() => startTopic('区块链')}>
-            <Text className='rec-name'>区块链</Text>
-            <Text className='rec-count'>9.6k 人已闯</Text>
-            <Text className='rec-go'>去闯关 ›</Text>
-          </View>
-        </View>
-      </View>
+      )}
 
-      <View className='home-btn'>
-        <Button
-          className={`btn btn-yellow btn-lg ${topicInput.trim() ? '' : 'btn-disabled'}`}
-          disabled={!topicInput.trim()}
-          onClick={() => startTopic(topicInput.trim())}
-        >
-          开始闯关
-        </Button>
-      </View>
-      <Text className='tip'>AI 会自动联网检索知识，生成 5 道闯关题</Text>
+      <Button
+        className={`btn btn-yellow start-btn ${topicInput.trim() && !generating ? '' : 'btn-disabled'}`}
+        disabled={!topicInput.trim() || generating}
+        onClick={() => void startTopic(topicInput.trim())}
+      >
+        {generating ? '生成中…' : '开始闯关'}
+      </Button>
+      <Text className='tip'>AI 生成 5 道闯关题，每答一题都会实时判定并生成讲解</Text>
 
-      <View className='card today-card'>
-        <View className='today-head'>
-          <Text className='today-title'>今日学习</Text>
-          <Text className='today-goal'>目标 20 分钟</Text>
+      {overview && (
+        <View className='stats-strip'>
+          <View className='strip-item' onClick={() => Taro.switchTab({ url: '/pages/history/index' })}>
+            <Text className='strip-num'>{overview.history_total}</Text>
+            <Text className='strip-label'>累计闯关</Text>
+          </View>
+          <View className='strip-divider' />
+          <View className='strip-item' onClick={() => Taro.switchTab({ url: '/pages/wrong-questions/index' })}>
+            <Text className='strip-num'>{overview.wrong_total}</Text>
+            <Text className='strip-label'>错题</Text>
+          </View>
+          <View className='strip-divider' />
+          <View className='strip-item' onClick={() => Taro.switchTab({ url: '/pages/wrong-questions/index' })}>
+            <Text className='strip-num'>{overview.due_review_total}</Text>
+            <Text className='strip-label'>当天待复习</Text>
+          </View>
         </View>
-        <View className='today-progress'>
-          <View className='today-fill' />
-        </View>
-        <View className='today-foot'>
-          <Text>已学习 8 分钟</Text>
-          <Text className='today-streak'>连续打卡 7 天</Text>
-        </View>
-      </View>
+      )}
     </View>
   )
 
@@ -305,91 +425,112 @@ export default function Index() {
     <View className='loading-screen'>
       <View className='loading-mascot'>🤖</View>
       <Text className='loading-title'>阿衰正在把知识变成关卡…</Text>
-
       <View className='loading-steps'>
         <View className={`step ${loadingStep >= 1 ? 'done' : ''}`}>
           <Text className='step-num'>✓</Text>
-          <Text>联网检索知识</Text>
+          <Text>理解你的学习主题</Text>
         </View>
         <View className={`step ${loadingStep >= 2 ? 'done' : 'active'}`}>
           <Text className='step-num'>{loadingStep >= 2 ? '✓' : '2'}</Text>
-          <Text>AI 生成题目</Text>
+          <Text>AI 生成闯关题目</Text>
         </View>
         <View className={`step ${loadingStep >= 3 ? 'done' : ''}`}>
           <Text className='step-num'>{loadingStep >= 3 ? '✓' : '3'}</Text>
           <Text>生成知识讲解</Text>
         </View>
       </View>
-
       <View className='loading-bar'>
         <View className='loading-fill' />
       </View>
-
-      <View className='loading-cancel'>
-        <Button className='btn btn-ghost btn-sm' onClick={reset}>取消</Button>
-      </View>
+      <Button className='btn btn-ghost btn-sm cancel-btn' onClick={reset}>取消</Button>
     </View>
   )
 
   const renderQuiz = () => {
-    const lastAnswer = answers[answers.length - 1]
-
+    if (!currentQuestion) return null
     return (
       <View className='screen-shell'>
         <View className='quiz-top'>
-          <Text className='quiz-progress'><Text className='strong'>{currentIndex + 1}</Text>/{questions.length}</Text>
-          <Text className='quiz-title'>{currentTopic}</Text>
-          <Text className='quiz-xp'>+20 XP</Text>
+          <View className='quiz-top-left'>
+            <Text className='quiz-progress'>
+              <Text className='strong'>{current + 1}</Text>/{questions.length}
+            </Text>
+            <Text className='quiz-title'>{quizTitle || quizTopic}</Text>
+          </View>
+          <Button className='btn btn-ghost btn-sm quiz-exit' onClick={reset}>退出</Button>
         </View>
 
-        <View className='quiz-progress-bar'>
-          <View className='progress-dots'>
-            {questions.map((question, index) => {
-              const answer = answers.find((item) => String(item.questionId) === String(question.id))
-              const state = answer ? (answer.isCorrect ? 'done' : 'wrong') : index === currentIndex ? 'on' : ''
-
-              return <View key={index} className={`pdot ${state}`} />
-            })}
-          </View>
+        <View className='progress-dots'>
+          {questions.map((q, index) => {
+            const ans = answerCount(q.id)
+            const state = ans
+              ? ans.is_correct
+                ? 'done'
+                : 'wrong'
+              : index === current
+                ? 'on'
+                : ''
+            return <View key={q.id} className={`pdot ${state}`} />
+          })}
         </View>
 
         <View className='card quiz-card'>
           <View className='quiz-tags'>
-            <Text className={`tag ${currentQuestion.type === 'single' ? 'tag-single' : currentQuestion.type === 'multi' ? 'tag-multi' : 'tag-judge'}`}>
-              {questionTypeText[currentQuestion.type]}
-            </Text>
-            <Text className={`tag ${currentQuestion.difficulty === '简单' ? 'tag-easy' : currentQuestion.difficulty === '中等' ? 'tag-mid' : 'tag-judge'}`}>
-              {currentQuestion.difficulty}
-            </Text>
+            <Text className='tag tag-type'>{questionTypeText[currentQuestion.type]}</Text>
+            <Text className='tag tag-diff'>{difficultyText(currentQuestion.difficulty)}</Text>
+            {isReview && <Text className='tag tag-review'>错题重温</Text>}
           </View>
-
-          <Text className='quiz-stem'>{currentQuestion.title}</Text>
-
-          {!submitted && currentQuestion.type === 'multi' && selectedKeys.length === 0 && (
-            <Text className='quiz-hint'>请选择多个正确答案</Text>
+          <Text className='quiz-stem'>{currentQuestion.stem}</Text>
+          {!submitted && currentQuestion.type === 'multiple' && selected.length === 0 && (
+            <Text className='quiz-hint'>可多选，请选择所有正确答案</Text>
           )}
-
           <View className='options'>
-            {currentQuestion.options.map((option) => renderOption(option))}
+            {currentQuestion.options.map((option) => {
+              const classState = renderOptionState(option.key)
+              const isSelected = selected.includes(option.key)
+              const isRight = submitted && feedback && feedback.correct_answers.includes(option.key)
+              return (
+                <View
+                  key={option.key}
+                  className={classState}
+                  onClick={() => toggleOption(option.key)}
+                >
+                  <Text className='key'>{option.key}</Text>
+                  <Text className='opt-text'>{option.text}</Text>
+                  {isSelected && !submitted && <Text className='mark'>✓</Text>}
+                  {submitted && isRight && <Text className='mark'>✓</Text>}
+                  {submitted && isSelected && feedback && !feedback.correct_answers.includes(option.key) && (
+                    <Text className='mark'>✕</Text>
+                  )}
+                </View>
+              )
+            })}
           </View>
         </View>
 
-        {submitted && lastAnswer && (
+        {submitted && feedback && (
           <View className='card explain-card'>
-            <Text className={`explain-head ${lastAnswer.isCorrect ? 'ok' : 'err'}`}>
-              {lastAnswer.isCorrect ? '✅ 答对啦！+20 XP · +10 金币' : `❌ 哎哟，答错了 · 正确答案是 ${currentQuestion.answer.join('、')}`}
+            <Text className={`explain-head ${feedback.is_correct ? 'ok' : 'err'}`}>
+              {feedback.is_correct
+                ? '✅ 答对啦！'
+                : `❌ 答错了 · 正确答案是 ${feedback.correct_answers.join('、')}`}
             </Text>
-            <Text className='explain-body'>{currentQuestion.explanation}</Text>
-            <Text className='explain-collapse'>收起讲解 ▲</Text>
+            <Text className='explain-body'>{feedback.explanation}</Text>
           </View>
         )}
 
         <View className='quiz-btn'>
           {!submitted ? (
-            <Button className='btn btn-yellow' onClick={submitAnswer}>提交答案</Button>
+            <Button
+              className={`btn btn-yellow ${selected.length ? '' : 'btn-disabled'}`}
+              disabled={!selected.length || submitting}
+              onClick={() => void onSubmitAnswer()}
+            >
+              {submitting ? '提交中…' : '提交答案'}
+            </Button>
           ) : (
-            <Button className='btn btn-green' onClick={nextQuestion}>
-              {currentIndex === questions.length - 1 ? '查看结算' : '下一题'}
+            <Button className='btn btn-green' disabled={completing} onClick={() => void nextQuestion()}>
+              {completing ? '结算中…' : current === questions.length - 1 ? '查看结算' : '下一题'}
             </Button>
           )}
         </View>
@@ -397,142 +538,133 @@ export default function Index() {
     )
   }
 
-  const renderResult = () => (
-    <View className='screen-shell win-screen'>
-      <View className='win-mascot'>🎉</View>
-      <Text className='win-title'>通关啦！</Text>
-      <Text className='win-sub'>{currentTopic} · {questions.length} 题完成</Text>
+  const renderResult = () => {
+    if (!result) return null
+    return (
+      <View className='screen-shell win-screen'>
+        <View className='win-mascot'>🎉</View>
+        <Text className='win-title'>通关啦！</Text>
+        <Text className='win-sub'>{quizTopic} · {questions.length} 题全部完成</Text>
 
-      <View className='win-stats'>
-        <View className='stat'>
-          <Text className='stat-num'>{stats.correct}/{stats.total}</Text>
-          <Text className='stat-label'>答对题数</Text>
-        </View>
-        <View className='stat'>
-          <Text className='stat-num'>{reportData?.accuracy ?? stats.percent}%</Text>
-          <Text className='stat-label'>正确率</Text>
-        </View>
-        <View className='stat'>
-          <Text className='stat-num'>2:35</Text>
-          <Text className='stat-label'>用时</Text>
-        </View>
-      </View>
-
-      <View className='card reward-card'>
-        <View className='reward-item'>
-          <Text className='r-ic yellow'>⚡</Text>
-          <Text>经验值 +{stats.xp} XP</Text>
-        </View>
-        <View className='reward-item'>
-          <Text className='r-ic deep'>🪙</Text>
-          <Text>金币 +{stats.coins}</Text>
-        </View>
-        <View className='reward-item'>
-          <Text className='r-ic green'>🏅</Text>
-          <Text>解锁徽章「初出茅庐」</Text>
-        </View>
-      </View>
-
-      <Button className='btn btn-yellow win-btn' onClick={openReport}>查看复盘报告</Button>
-      <Button className='btn btn-ghost btn-sm' onClick={reset}>再闯一关</Button>
-    </View>
-  )
-
-  const renderReport = () => (
-    <View className='screen-shell'>
-      <Text className='report-head'>复盘报告</Text>
-      <Text className='report-sub'>本次闯关 · {currentTopic}</Text>
-
-      <View className='card ring-card'>
-        <View className='ring'>
-          <View className='ring-in'>
-            <Text className='ring-num'>{reportData?.accuracy ?? stats.percent}%</Text>
-            <Text className='ring-label'>正确率</Text>
+        <View className='win-stats'>
+          <View className='stat'>
+            <Text className='stat-num'>{result.correct_count}/{result.question_count}</Text>
+            <Text className='stat-label'>答对题数</Text>
+          </View>
+          <View className='stat'>
+            <Text className='stat-num'>{Math.round(result.accuracy)}%</Text>
+            <Text className='stat-label'>正确率</Text>
+          </View>
+          <View className='stat'>
+            <Text className='stat-num'>{formatMs(result.total_duration_ms)}</Text>
+            <Text className='stat-label'>用时</Text>
           </View>
         </View>
-        <Text className='ring-desc'>掌握度评估 · {reportData?.mastered_points.length || 0} 个知识点已掌握</Text>
-      </View>
 
-      <View className='card sec-card'>
-        <Text className='sec-title'>✅ 掌握较好</Text>
-        <View className='point-list'>
-          {(reportData?.mastered_points || ['等待报告生成']).map((point) => (
-            <Text key={point} className='point'>{point}</Text>
-          ))}
+        {result.accuracy >= 80 && (
+          <View className='win-praise'>掌握得不错！错题已自动收录到错题本，建议按提示时间复习。</View>
+        )}
+
+        <Button className='btn btn-yellow win-btn' loading={reportLoading} onClick={() => void openReport()}>
+          {report ? '重新生成复盘报告' : '查看复盘报告'}
+        </Button>
+        <Button className='btn btn-ghost btn-sm win-ghost' onClick={reset}>再闯一关</Button>
+        <Text className='tip'>复盘报告由 AI 根据答题记录生成</Text>
+      </View>
+    )
+  }
+
+  const renderReport = () => {
+    const accuracy = report ? Math.round(report.accuracy) : result ? Math.round(result.accuracy) : 0
+    const failed = report?.status === 'failed'
+    return (
+      <View className='screen-shell'>
+        <Text className='report-head'>复盘报告</Text>
+        <Text className='report-sub'>本次闯关 · {quizTopic}</Text>
+
+        <View className='card ring-card'>
+          <View className='ring' style={`--p:${accuracy}`}>
+            <View className='ring-in'>
+              <Text className='ring-num'>{accuracy}%</Text>
+              <Text className='ring-label'>正确率</Text>
+            </View>
+          </View>
+          <Text className='ring-desc'>掌握度评估 · 报告由 AI 根据你的答题记录生成</Text>
         </View>
+
+        {failed && (
+          <View className='report-error'>
+            <Text className='report-error-text'>上次报告生成失败，请重试</Text>
+            <Button className='btn btn-yellow btn-sm' onClick={() => void openReport()}>重新生成</Button>
+          </View>
+        )}
+
+        {report && !failed && (
+          <>
+            <View className='card sec-card'>
+              <Text className='sec-title'>✅ 掌握较好</Text>
+              <View className='point-list'>
+                {report.mastered_points.length ? (
+                  report.mastered_points.map((point) => (
+                    <Text key={point} className='point'>• {point}</Text>
+                  ))
+                ) : (
+                  <Text className='point-empty'>暂无</Text>
+                )}
+              </View>
+            </View>
+
+            <View className='card sec-card'>
+              <Text className='sec-title'>⚠️ 薄弱知识点</Text>
+              <View className='point-list'>
+                {report.weak_points.length ? (
+                  report.weak_points.map((point) => (
+                    <Text key={point} className='point'>• {point}</Text>
+                  ))
+                ) : (
+                  <Text className='point-empty'>表现很好，暂无薄弱点</Text>
+                )}
+              </View>
+            </View>
+
+            <View className='card sec-card'>
+              <Text className='sec-title'>📝 三句知识总结</Text>
+              {report.three_line_summary.map((line, index) => (
+                <Text key={`${index}-${line}`} className='summary-line'>{index + 1}. {line}</Text>
+              ))}
+            </View>
+
+            <View className='card sec-card'>
+              <Text className='sec-title'>💡 复习建议</Text>
+              {report.advice.map((line, index) => (
+                <Text key={`${index}-${line}`} className='summary-line'>• {line}</Text>
+              ))}
+            </View>
+
+            {report.share_quote && (
+              <View className='quote-card'>
+                <Text className='quote-text'>「{report.share_quote}」</Text>
+              </View>
+            )}
+          </>
+        )}
+
+        <Button className='btn btn-yellow report-btn' onClick={() => void openReport()}>
+          {reportLoading ? '生成中…' : '重新生成报告'}
+        </Button>
+        <Button className='btn btn-ghost btn-sm report-ghost' onClick={goHomeTab}>查看历史记录</Button>
+        <Button className='btn btn-home' onClick={reset}>🏠 返回首页</Button>
       </View>
-
-      <View className='card sec-card'>
-        <Text className='sec-title'>⚠️ 薄弱知识点</Text>
-        <View className='point-list'>
-          {(reportData?.weak_points || ['等待报告生成']).map((point) => (
-            <Text key={point} className='point'>{point}</Text>
-          ))}
-        </View>
-      </View>
-
-      <View className='card sec-card'>
-        <Text className='sec-title'>📝 三句知识总结</Text>
-        <Text className='summary-list'>{reportData?.three_line_summary.join('\n') || '报告生成中，请稍候。'}</Text>
-      </View>
-
-      <View className='card sec-card'>
-        <Text className='sec-title'>💡 复习建议</Text>
-        <Text className='summary-list'>建议 3 天后重温「RAG 与搜索引擎」相关题目，错题已加入错题本。</Text>
-      </View>
-
-      <Button className='btn btn-yellow report-btn' onClick={openPoster}>生成分享海报</Button>
-    </View>
-  )
-
-  const renderPoster = () => (
-    <View className='screen-shell'>
-      <Text className='report-head'>分享学习成果</Text>
-      <Text className='report-sub'>生成一张精美海报，分享给好友</Text>
-
-      <View className='poster'>
-        <Text className='poster-top'>今天我又闯过一个知识关卡！</Text>
-        <Text className='poster-data'>正确率 {stats.percent}% · 掌握 4 个知识点</Text>
-        <View className='poster-mascot'>🐼</View>
-        <Text className='poster-quote'>「把知识做成关卡，记忆会更深。」</Text>
-        <View className='poster-code'>小程序码</View>
-        <Text className='poster-brand'>阿衰闯关学习 · 扫码一起闯关</Text>
-      </View>
-
-      <Button className='btn btn-yellow poster-btn' onClick={() => setScreen('poster')}>保存海报</Button>
-      <Button className='btn btn-green' onClick={() => setScreen('poster')}>转发给好友</Button>
-    </View>
-  )
+    )
+  }
 
   return (
     <View className='index-page'>
-      <View className='screen'>
-        {screen === 'home' && renderHome()}
-        {screen === 'loading' && renderLoading()}
-        {screen === 'quiz' && renderQuiz()}
-        {screen === 'result' && renderResult()}
-        {screen === 'report' && renderReport()}
-        {screen === 'poster' && renderPoster()}
-      </View>
-
-      <View className='tabbar'>
-        <View className={`tab ${screen === 'home' ? 'on' : ''}`} onClick={reset}>
-          <Text className='ic'>🏠</Text>
-          <Text>首页</Text>
-        </View>
-        <View className={`tab ${screen === 'quiz' ? 'on' : ''}`} onClick={() => startTopic(currentTopic)}>
-          <Text className='ic'>🎯</Text>
-          <Text>闯关</Text>
-        </View>
-        <View className={`tab ${screen === 'report' || screen === 'poster' ? 'on' : ''}`} onClick={openReport}>
-          <Text className='ic'>📊</Text>
-          <Text>报告</Text>
-        </View>
-        <View className='tab' onClick={reset}>
-          <Text className='ic'>👤</Text>
-          <Text>我的</Text>
-        </View>
-      </View>
+      {screen === 'home' && renderHome()}
+      {screen === 'loading' && renderLoading()}
+      {screen === 'quiz' && renderQuiz()}
+      {screen === 'result' && renderResult()}
+      {screen === 'report' && renderReport()}
     </View>
   )
 }

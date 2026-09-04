@@ -1,0 +1,129 @@
+.screen-shell {
+  min-height: 100vh;
+  background: #fbf7ef;
+  padding: 16px 16px 48px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #ede6d8;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+/* ---------- avatar ---------- */
+.avatar-card {
+  padding: 18px 16px;
+  margin-bottom: 12px;
+}
+
+.avatar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid #f0d694;
+  background: #fff8e6;
+  flex-shrink: 0;
+}
+
+.avatar-default {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid #f0d694;
+  background: #fff8e6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  flex-shrink: 0;
+}
+
+.avatar-actions {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.avatar-btn {
+  height: 38px;
+  line-height: 38px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5a3e00;
+  background: linear-gradient(135deg, #ffd97a, #f5b93f);
+  border-radius: 999px;
+  padding: 0 18px;
+}
+
+.avatar-btn::after {
+  border: none;
+}
+
+.clear-avatar {
+  font-size: 12px;
+  color: #a8a29a;
+  text-decoration: underline;
+}
+
+/* ---------- nickname ---------- */
+.nick-card {
+  padding: 18px 16px;
+  margin-bottom: 12px;
+}
+
+.nick-input {
+  background: #faf6ee;
+  border: 1px solid #ede6d8;
+  border-radius: 10px;
+  height: 44px;
+  line-height: 44px;
+  padding: 0 12px;
+  font-size: 15px;
+  color: #333;
+}
+
+.tip {
+  display: block;
+  font-size: 12px;
+  color: #a8a29a;
+  line-height: 1.6;
+  padding: 0 8px;
+}
+
+/* ---------- save ---------- */
+.save-btn {
+  margin-top: 24px;
+  height: 48px;
+  line-height: 48px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #5a3e00;
+  background: linear-gradient(135deg, #ffd97a, #f5b93f);
+  border-radius: 999px;
+  box-shadow: 0 6px 16px rgba(245, 185, 63, 0.35);
+}
+
+.save-btn::after {
+  border: none;
+}
+
+.save-btn[disabled] {
+  opacity: 0.6;
+}

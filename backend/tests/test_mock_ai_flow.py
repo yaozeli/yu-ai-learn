@@ -73,8 +73,19 @@ def test_report_endpoint_calls_report_service(monkeypatch):
     }
     monkeypatch.setattr(main, "build_llm", lambda settings: object())
     monkeypatch.setattr(main, "generate_report_service", lambda payload, llm: {"accuracy": 0})
+    from app.core.config import Settings
+    test_settings = Settings(jwt_secret_key="test-secret")
+    main.app.dependency_overrides[main.get_settings] = lambda: test_settings
+    from app.core.security import create_access_token
+    token = create_access_token("user-1", test_settings)
 
-    response = TestClient(main.app).post("/api/v1/report/generate", json=payload)
+    response = TestClient(main.app).post(
+        "/api/v1/report/generate",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    main.app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert response.json() == {"accuracy": 0}
+    assert response.json()["code"] == 0
+    assert response.json()["data"] == {"accuracy": 0}

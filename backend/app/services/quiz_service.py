@@ -54,7 +54,8 @@ def generate_quiz(user_input: str, llm: Runnable, max_attempts: int = 2) -> dict
             result = chain.invoke({"user_input": normalized})
             quiz = result if isinstance(result, Quiz) else Quiz.model_validate(result)
             quiz = validate_quiz(quiz, normalized)
-            return quiz.model_copy(update={"quiz_id": f"quiz_{uuid4().hex}"}).model_dump()
+            # CHAR(36) primary key: use the bare 36-char uuid hex, not a prefixed form.
+            return quiz.model_copy(update={"quiz_id": uuid4().hex}).model_dump()
         except Exception as error:
             last_error = error
 

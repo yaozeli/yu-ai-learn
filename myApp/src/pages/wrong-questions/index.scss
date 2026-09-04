@@ -1,0 +1,258 @@
+.screen-shell {
+  min-height: 100vh;
+  background: #fbf7ef;
+  padding: 12px 16px 32px;
+}
+
+/* ---------- 错题宝箱 ---------- */
+.treasure-card {
+  padding: 20px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(135deg, #fff8e6, #fff0cc);
+  border: 1px solid #f5dfa8;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.treasure-icon {
+  font-size: 40px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.treasure-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #333;
+}
+
+.treasure-hint {
+  font-size: 13px;
+  color: #8a8a8a;
+  margin-top: 6px;
+}
+
+/* ---------- 空状态 ---------- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 160px;
+}
+
+.empty-icon {
+  font-size: 56px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.empty-text {
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+}
+
+.empty-hint {
+  font-size: 13px;
+  color: #8a8a8a;
+  margin-top: 8px;
+}
+
+/* ---------- 知识点分组 ---------- */
+.kp-group {
+  margin-bottom: 16px;
+}
+
+.kp-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #d18f00;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* ---------- 题目卡片 ---------- */
+.q-card {
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  background: #fff;
+  border: 1px solid #ede6d8;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.q-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.q-stem {
+  font-size: 14px;
+  color: #333;
+  line-height: 1.6;
+  font-weight: 500;
+  flex: 1;
+}
+
+.wrong-badge {
+  font-size: 11px;
+  color: #e85d5d;
+  background: #fdebeb;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.q-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #faf6ee;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.opt-correct {
+  background: #e8f5e0;
+  border: 1px solid #c3e0b0;
+}
+
+.opt-key {
+  font-weight: 700;
+  color: #555;
+  flex-shrink: 0;
+}
+
+.opt-correct .opt-key {
+  color: #5a9e3e;
+}
+
+.review-tip {
+  font-size: 11px;
+  color: #8a8a8a;
+  margin-top: 6px;
+}
+
+.load-more {
+  text-align: center;
+  padding: 16px 0;
+}
+
+.load-more-text {
+  font-size: 13px;
+  color: #8a8a8a;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #ede6d8;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+/* ---------- list extras ---------- */
+.kp-count {
+  color: #a8a29a;
+  font-weight: 400;
+}
+
+.q-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 10px 0 0;
+  gap: 8px;
+}
+
+.wrong-date {
+  font-size: 11px;
+  color: #a8a29a;
+}
+
+.review-chip {
+  font-size: 11px;
+  font-weight: 600;
+  color: #d18f00;
+  background: #fdf3da;
+  border-radius: 999px;
+  padding: 3px 10px;
+  flex-shrink: 0;
+}
+
+.review-chip.due {
+  color: #e85d5d;
+  background: #fdebeb;
+}
+
+.q-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.detail-btn {
+  flex: 1;
+  height: 36px;
+  line-height: 36px;
+  font-size: 13px;
+  color: #6a6a6a;
+  background: #fff;
+  border: 1px solid #e2dac8;
+  border-radius: 999px;
+}
+
+.detail-btn::after {
+  border: none;
+}
+
+.q-actions .retry-btn {
+  flex: 1;
+  height: 36px;
+  line-height: 36px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #ffd97a, #f5a623);
+  border-radius: 999px;
+  box-shadow: 0 4px 10px rgba(245, 166, 35, 0.3);
+}
+
+.q-actions .retry-btn::after {
+  border: none;
+}
+
+.empty-state .retry-btn {
+  margin-top: 20px;
+  width: 160px;
+  height: 40px;
+  line-height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #d18f00;
+  background: #fff;
+  border: 1px solid #f0c76a;
+  border-radius: 999px;
+}
+
+.empty-state .retry-btn::after {
+  border: none;
+}
