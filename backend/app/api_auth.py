@@ -1,3 +1,5 @@
+import base64
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -7,7 +9,13 @@ from app.core.database import get_db
 from app.core.errors import ok
 from app.core.security import bearer_scheme, create_access_token, require_user_id
 from app.schemas_auth import AuthResponse, UserProfile, UserProfileUpdate, WechatLoginRequest
-from app.services.auth_service import AuthenticationError, exchange_wechat_code, upsert_user
+from app.services.auth_service import (
+    AuthenticationError,
+    WechatApiError,
+    exchange_wechat_code,
+    fetch_wxacode_unlimit,
+    upsert_user,
+)
 from app.models_user import UserEntity
 from app.services.learning_service import get_user_overview
 
@@ -128,3 +136,27 @@ def current_user_overview(
 ):
     user_id = require_user_id(credentials, settings)
     return ok(get_user_overview(session, user_id))
+@router.get("/users/me/share-qrcode")
+def get_share_qrcode(
+    scene: str = "poster",
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    settings: Settings = Depends(get_settings),
+):
+    """Mini-program code (wxacode) for the share poster.
+
+    Returns base64 PNG so the mini program can write it to a local file and
+    draw it on the poster canvas without a download-domain whitelist. When the
+    WeChat API is not configured/unavailable the client falls back to drawing
+    a placeholder block, so poster generation never blocks on WeChat.
+    """
+    require_user_id(credentials, settings)
+    try:
+        content = fetch_wxacode_unlimit(
+            settings,
+            scene=scene,
+            page=settings.wechat_qrcode_page,
+            env_version=settings.wechat_qrcode_env_version,
+        )
+    except WechatApiError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    return ok({"base64": base64.b64encode(content).decode("ascii")})

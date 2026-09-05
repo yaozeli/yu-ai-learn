@@ -193,19 +193,29 @@ interface RequestOptions {
   withAuth?: boolean
 }
 
+let loginPromise: Promise<UserProfile> | null = null
+
 async function login(): Promise<UserProfile> {
-  const result = await Taro.login()
-  if (!result.code) {
-    throw new ApiError('微信登录失败，请重试', 0, -1)
-  }
-  const data = await request<{ token: string; user: UserProfile }>(
-    '/api/v1/auth/wechat-login',
-    { code: result.code },
-    { method: 'POST', retry: false, withAuth: false }
-  )
-  setToken(data.token)
-  setStoredUser(data.user)
-  return data.user
+  if (loginPromise) return loginPromise
+  loginPromise = (async () => {
+    try {
+      const result = await Taro.login()
+      if (!result.code) {
+        throw new ApiError('微信登录失败，请重试', 0, -1)
+      }
+      const data = await request<{ token: string; user: UserProfile }>(
+        '/api/v1/auth/wechat-login',
+        { code: result.code },
+        { method: 'POST', retry: false, withAuth: false }
+      )
+      setToken(data.token)
+      setStoredUser(data.user)
+      return data.user
+    } finally {
+      loginPromise = null
+    }
+  })()
+  return loginPromise
 }
 
 /**
@@ -219,7 +229,14 @@ export async function request<T>(
 ): Promise<T> {
   const { method = 'POST', retry = true, withAuth = true } = options
   const url = `${API_BASE_URL}${path}`
-  const token = getToken()
+
+  // Ensure we have a token before sending an authenticated request, so the
+  // first launch of the mini program does not fire a batch of 401s.
+  let token = getToken()
+  if (withAuth && !token && path !== '/api/v1/auth/wechat-login') {
+    await login()
+    token = getToken()
+  }
 
   const response = await Taro.request<Envelope<T>>({
     url,
@@ -392,6 +409,20 @@ export function getWrongQuestionDetail(wrongId: string) {
 
 export function retryWrongQuestion(wrongId: string) {
   return request<QuizDetailResponse>(`/api/v1/wrong-questions/${wrongId}/retry`, {})
+}
+
+export interface ShareQrcodeResult {
+  base64: string
+}
+
+/** Mini-program code (wxacode) as base64 for the share poster. Falls back to
+ * the caller drawing a placeholder when WeChat returns an error. */
+export function getShareQrcode(scene = 'poster') {
+  return request<ShareQrcodeResult>(
+    `/api/v1/users/me/share-qrcode?scene=${encodeURIComponent(scene)}`,
+    {},
+    { method: 'GET' }
+  )
 }
 
 // ---------- cross-page helpers ----------

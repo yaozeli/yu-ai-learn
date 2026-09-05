@@ -6,7 +6,8 @@ export default defineAppConfig({
     'pages/history/index',
     'pages/history/detail',
     'pages/wrong-questions/index',
-    'pages/wrong-questions/detail'
+    'pages/wrong-questions/detail',
+    'pages/poster/index'
   ],
   window: {
     backgroundTextStyle: 'light',

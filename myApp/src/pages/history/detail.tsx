@@ -50,6 +50,11 @@ export default function HistoryDetail() {
     }
   }
 
+  const goPoster = () => {
+    if (!quizId) return
+    Taro.navigateTo({ url: `/pages/poster/index?quizId=${quizId}` })
+  }
+
   const answerByQuestion = (questions: QuizApiQuestion[], answers: QuizAnswerRecord[]) => {
     const map: Record<string, QuizAnswerRecord> = {}
     for (const record of answers) {
@@ -198,6 +203,8 @@ export default function HistoryDetail() {
             {report.share_quote && (
               <View className='report-quote'>「{report.share_quote}」</View>
             )}
+
+            <Button className='share-poster-btn' onClick={goPoster}>🖼 生成分享海报</Button>
 
             <Button className='regenerate-btn' loading={reportLoading} onClick={() => void generateReport()}>
               重新生成报告

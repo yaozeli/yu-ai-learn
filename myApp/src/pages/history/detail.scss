@@ -433,6 +433,22 @@
   margin-bottom: 6px;
 }
 
+.share-poster-btn {
+  margin-top: 14px;
+  height: 42px;
+  line-height: 42px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #ffc94d, #f2a900);
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(242, 169, 0, 0.3);
+}
+
+.share-poster-btn::after {
+  border: none;
+}
+
 .regenerate-btn {
   margin-top: 8px;
   height: 36px;

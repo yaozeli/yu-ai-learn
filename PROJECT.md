@@ -96,6 +96,7 @@ python -m pytest tests/ -q
 - `PATCH /api/v1/users/me` - 修改昵称/头像（`{nickname?, avatar_url?}`）
 - `POST /api/v1/users/me/avatar` - 上传头像图片（multipart `file`，≤2MB，返回 `{avatar_url}`）
 - `GET /api/v1/users/me/overview` - 个人统计 `{history_total, wrong_total, due_review_total}`
+- `GET /api/v1/users/me/share-qrcode?scene=poster` - 分享海报用小程序码（微信 `getwxacodeunlimit`，返回 base64 PNG/JPEG；未配置 AppID/Secret 或调用失败时返回 5030，前端自动降级为占位码）
 
 ### 闯关
 - `POST /api/v1/quiz/generate` - AI 生成题目并立即创建会话与题目快照（需要 JWT）
@@ -192,4 +193,5 @@ myApp/
 4. 错题复习：错题「重新挑战」会创建单题复习会话并跳回首页答题；答对在同一事务内删除错题记录、答错更新错题次数与 `review_at`。
 5. 报告生成为「按需/可重试」：结算页点「查看复盘报告」触发，失败落库 failed 并在详情页/报告页提供重试；报告内容按真实答题记录生成。
 6. 中途退出：会话保持 in_progress，首页展示「继续闯关」横幅、历史列表与详情提供继续入口，恢复时用服务端快照与已提交记录。
-7. 遗留差异：MVP 阶段的海报/分享海报、金币/徽章等游戏化元素本轮未实现（不虚构数据）；原型 2/3 中分析、排行榜、PK、会员等页面不在本次范围。
+7. 分享海报（已实现）：结算报告页与闯关历史详情页提供「生成分享海报」，进入独立海报页用真实数据（正确率/答对题数/掌握知识点/AI 金句）在 Canvas 绘制金色分享卡，支持保存到相册与转发好友；海报内嵌小程序码优先取微信 `getwxacodeunlimit` 真码（`env_version` 默认 `develop`，配置 `WECHAT_APP_ID/SECRET` 后可用，实测测试号可正常返回），失败自动降级为占位码，不阻塞保存。
+8. 遗留差异：金币/徽章/经验值等游戏化元素本轮未实现（不虚构数据）；原型 2/3 中分析、排行榜、PK、会员等页面不在本次范围。

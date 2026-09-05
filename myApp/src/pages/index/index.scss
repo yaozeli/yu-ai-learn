@@ -683,6 +683,21 @@
   margin-top: 4px;
 }
 
+.quiz-btn-row {
+  display: flex;
+  gap: 12px;
+}
+
+.quiz-nav-prev {
+  flex: 1;
+  min-width: 0;
+}
+
+.quiz-nav-next {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ---------- result ---------- */
 .win-screen {
   padding-top: 60px;
@@ -902,6 +917,10 @@
 
 .report-ghost {
   margin-top: 14px;
+}
+
+.report-regen {
+  margin-top: 12px;
 }
 
 .btn-home {

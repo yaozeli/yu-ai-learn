@@ -96,10 +96,13 @@ export default function Index() {
   }, [screen])
 
   // ---------- home data ----------
-  const refreshHome = () => {
-    ensureLogin()
-      .then(setUser)
-      .catch(() => setUser(null))
+  const refreshHome = async () => {
+    try {
+      const loggedInUser = await ensureLogin()
+      setUser(loggedInUser)
+    } catch {
+      setUser(null)
+    }
     getQuizInProgress()
       .then((data) => setInProgress(data.items || []))
       .catch(() => undefined)
@@ -144,6 +147,11 @@ export default function Index() {
     setLoadingStep(1)
     setTopicInput('')
     refreshHome()
+  }
+
+  const goPoster = () => {
+    if (!quizId) return
+    Taro.navigateTo({ url: `/pages/poster/index?quizId=${quizId}` })
   }
 
   // ---------- start / resume ----------
@@ -197,7 +205,29 @@ export default function Index() {
       }
       const answered = new Set(detail.answers.map((a) => a.question_id))
       const firstUnanswered = detail.questions.findIndex((q) => !answered.has(q.id))
-      const startAt = detail.questions.length > 0 ? (firstUnanswered >= 0 ? firstUnanswered : 0) : 0
+      if (firstUnanswered === -1) {
+        // Every question is answered but the session is still in_progress
+        // (the user exited before the final button). Finalize it server-side
+        // and jump straight to the result screen instead of re-answering.
+        const completeResult = await completeQuiz(quizId)
+        setResult(completeResult)
+        setQuizId(detail.id)
+        setQuizTitle(detail.title)
+        setQuizTopic(detail.topic)
+        setQuestions(detail.questions)
+        setIsReview(detail.review)
+        setAnswers(
+          detail.answers.map((a) => ({
+            question_id: a.question_id,
+            selected_answers: a.selected_answers,
+            is_correct: a.is_correct
+          }))
+        )
+        setReport(detail.report && detail.report.status === 'completed' ? detail.report : null)
+        setScreen('result')
+        return
+      }
+      const startAt = detail.questions.length > 0 ? firstUnanswered : 0
       setQuizId(detail.id)
       setQuizTitle(detail.title)
       setQuizTopic(detail.topic)
@@ -269,6 +299,34 @@ export default function Index() {
     }
   }
 
+  /** Restore the submitted/cleared answering state for the question at `index`. */
+  const applyQuestionState = (index: number) => {
+    const question = questions[index]
+    if (!question) return
+    const stored = answerCount(question.id)
+    setCurrent(index)
+    if (stored) {
+      setFeedback({
+        is_correct: stored.is_correct,
+        already_submitted: true,
+        correct_answers: question.answer,
+        explanation: question.explanation
+      })
+      setSelected(stored.selected_answers)
+      setSubmitted(true)
+    } else {
+      setSelected([])
+      setSubmitted(false)
+      setFeedback(null)
+    }
+    markStarted(question.id)
+  }
+
+  const goPrev = () => {
+    if (current <= 0 || submitting || completing) return
+    applyQuestionState(current - 1)
+  }
+
   const nextQuestion = async () => {
     if (!quizId) return
     if (current >= questions.length - 1) {
@@ -285,12 +343,24 @@ export default function Index() {
       return
     }
     const nextIndex = current + 1
-    const nextQuestion = questions[nextIndex]
-    if (nextQuestion) markStarted(nextQuestion.id)
+    if (nextIndex >= 0) markStarted(questions[nextIndex]?.id || '')
     setCurrent(nextIndex)
-    setSelected([])
-    setSubmitted(false)
-    setFeedback(null)
+    const stored = answerCount(questions[nextIndex]?.id || '')
+    if (stored) {
+      const question = questions[nextIndex]
+      setFeedback({
+        is_correct: stored.is_correct,
+        already_submitted: true,
+        correct_answers: question.answer,
+        explanation: question.explanation
+      })
+      setSelected(stored.selected_answers)
+      setSubmitted(true)
+    } else {
+      setSelected([])
+      setSubmitted(false)
+      setFeedback(null)
+    }
   }
 
   const openReport = async () => {
@@ -520,19 +590,30 @@ export default function Index() {
         )}
 
         <View className='quiz-btn'>
-          {!submitted ? (
-            <Button
-              className={`btn btn-yellow ${selected.length ? '' : 'btn-disabled'}`}
-              disabled={!selected.length || submitting}
-              onClick={() => void onSubmitAnswer()}
-            >
-              {submitting ? '提交中…' : '提交答案'}
-            </Button>
-          ) : (
-            <Button className='btn btn-green' disabled={completing} onClick={() => void nextQuestion()}>
-              {completing ? '结算中…' : current === questions.length - 1 ? '查看结算' : '下一题'}
-            </Button>
-          )}
+          <View className='quiz-btn-row'>
+            {current > 0 && (
+              <Button
+                className='btn btn-ghost quiz-nav-prev'
+                disabled={submitting || completing}
+                onClick={goPrev}
+              >
+                ‹ 上一题
+              </Button>
+            )}
+            {!submitted ? (
+              <Button
+                className={`btn btn-yellow quiz-nav-next ${selected.length ? '' : 'btn-disabled'}`}
+                disabled={!selected.length || submitting}
+                onClick={() => void onSubmitAnswer()}
+              >
+                {submitting ? '提交中…' : '提交答案'}
+              </Button>
+            ) : (
+              <Button className='btn btn-green quiz-nav-next' disabled={completing} onClick={() => void nextQuestion()}>
+                {completing ? '生成中…' : current === questions.length - 1 ? '查看报告' : '下一题 ›'}
+              </Button>
+            )}
+          </View>
         </View>
       </View>
     )
@@ -649,7 +730,10 @@ export default function Index() {
           </>
         )}
 
-        <Button className='btn btn-yellow report-btn' onClick={() => void openReport()}>
+        {report && !failed && (
+          <Button className='btn btn-yellow report-btn' onClick={goPoster}>🖼 生成分享海报</Button>
+        )}
+        <Button className='btn btn-ghost btn-sm report-regen' onClick={() => void openReport()}>
           {reportLoading ? '生成中…' : '重新生成报告'}
         </Button>
         <Button className='btn btn-ghost btn-sm report-ghost' onClick={goHomeTab}>查看历史记录</Button>

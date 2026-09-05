@@ -5,6 +5,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # Primary provider strategy: "agnes" (primary) or "deepseek"
+    llm_primary_provider: str = "agnes"
+
+    # Agnes AI (primary provider)
+    agnes_api_key: str = ""
+    agnes_model: str = ""
+    agnes_base_url: str = ""
+    agnes_request_timeout: float = 30.0
+
+    # DeepSeek (fallback provider)
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-chat"
     deepseek_base_url: str = "https://api.deepseek.com"
@@ -30,6 +40,12 @@ class Settings(BaseSettings):
     # Directory that stores uploaded avatars. Empty means
     # <backend>/uploads/avatars by default.
     avatar_upload_dir: str = ""
+    # Mini program code (share poster). env_version: release | trial | develop.
+    # "develop" lets developers open the code during development; switch to
+    # "release" once the mini program is published.
+    wechat_qrcode_env_version: str = "develop"
+    # Page the poster code opens.
+    wechat_qrcode_page: str = "pages/index/index"
 
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env"),

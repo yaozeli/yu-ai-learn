@@ -212,6 +212,27 @@ def list_in_progress(session: Session, user_id: str) -> list[dict]:
     return items
 
 
+def _auto_complete_if_all_answered(session: Session, quiz: QuizSessionEntity) -> None:
+    """If every question has an answer record, mark the quiz completed so the
+    user does not need to tap an explicit "complete" button after the last
+    question."""
+    records = session.scalars(select(AnswerRecordEntity).where(
+        AnswerRecordEntity.quiz_session_id == quiz.id,
+        AnswerRecordEntity.user_id == quiz.user_id,
+    )).all()
+    if len(records) < quiz.question_count:
+        return
+    correct = sum(record.is_correct for record in records)
+    total_duration = sum(record.duration_ms for record in records)
+    completed = now_utc()
+    quiz.correct_count = correct
+    quiz.accuracy = round(correct / quiz.question_count * 100, 2)
+    quiz.total_duration_ms = total_duration
+    quiz.status = "completed"
+    quiz.completed_at = completed
+    quiz.updated_at = completed
+
+
 def submit_answer(session: Session, user_id: str, quiz_id: str, payload: AnswerSubmit) -> dict:
     quiz = get_owned_quiz(session, user_id, quiz_id)
     question = session.scalar(select(QuestionSnapshotEntity).where(
@@ -225,6 +246,12 @@ def submit_answer(session: Session, user_id: str, quiz_id: str, payload: AnswerS
         AnswerRecordEntity.question_snapshot_id == question.id,
     ))
     if existing is not None:
+        # Re-submitting an already-answered question: if this was the last
+        # unanswered one (e.g. the user exited before the final button), the
+        # quiz may still be in_progress even though every question has a
+        # record. Auto-complete it so it no longer shows as unfinished.
+        _auto_complete_if_all_answered(session, quiz)
+        session.commit()
         return {
             "is_correct": existing.is_correct,
             "already_submitted": True,

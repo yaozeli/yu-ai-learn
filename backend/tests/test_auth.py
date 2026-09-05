@@ -53,3 +53,95 @@ def test_mock_login_creates_and_reuses_same_user():
         assert first.json()["data"]["user"]["id"] == second.json()["data"]["user"]["id"]
     finally:
         app.dependency_overrides.clear()
+
+def _share_client(settings: Settings):
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine)
+    app.dependency_overrides[get_db] = lambda: session_factory()
+    app.dependency_overrides[get_settings] = lambda: settings
+    return TestClient(app)
+
+
+def _login_token(client: TestClient) -> str:
+    response = client.post("/api/v1/auth/wechat-login", json={"code": "share-user"})
+    assert response.status_code == 200
+    return response.json()["data"]["token"]
+
+
+def test_share_qrcode_unconfigured_returns_unavailable():
+    settings = Settings(
+        app_env="development",
+        enable_mock_login=True,
+        jwt_secret_key="test-secret",
+        wechat_app_id="",
+        wechat_app_secret="",
+    )
+    client = _share_client(settings)
+    try:
+        token = _login_token(client)
+        response = client.get(
+            "/api/v1/users/me/share-qrcode", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 503
+        assert response.json()["code"] == 5030
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_share_qrcode_returns_base64_when_wechat_ok(monkeypatch):
+    import base64
+
+    import app.api_auth as api_auth
+
+    fake_png = base64.b64decode("ZmFrZS1wbmdieXRlcw==")
+    monkeypatch.setattr(api_auth, "fetch_wxacode_unlimit", lambda *args, **kwargs: fake_png)
+    settings = Settings(
+        app_env="development",
+        enable_mock_login=True,
+        jwt_secret_key="test-secret",
+        wechat_app_id="wx-test",
+        wechat_app_secret="s3cret",
+    )
+    client = _share_client(settings)
+    try:
+        token = _login_token(client)
+        response = client.get(
+            "/api/v1/users/me/share-qrcode", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 200
+        assert response.json()["code"] == 0
+        assert base64.b64decode(response.json()["data"]["base64"]) == fake_png
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_share_qrcode_wechat_error_is_503(monkeypatch):
+    import app.api_auth as api_auth
+    from app.services.auth_service import WechatApiError
+
+    def _boom(*args, **kwargs):
+        raise WechatApiError("小程序码生成失败：boom")
+
+    monkeypatch.setattr(api_auth, "fetch_wxacode_unlimit", _boom)
+    settings = Settings(
+        app_env="development",
+        enable_mock_login=True,
+        jwt_secret_key="test-secret",
+        wechat_app_id="wx-test",
+        wechat_app_secret="s3cret",
+    )
+    client = _share_client(settings)
+    try:
+        token = _login_token(client)
+        response = client.get(
+            "/api/v1/users/me/share-qrcode", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert response.status_code == 503
+        assert "boom" in response.json()["message"]
+    finally:
+        app.dependency_overrides.clear()

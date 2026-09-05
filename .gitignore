@@ -47,3 +47,10 @@ logs/
 # Project-specific generated artifacts
 *.local
 .cache/
+
+.freebuff
+.cline
+.clinerules
+.github
+.trae
+.zcode
