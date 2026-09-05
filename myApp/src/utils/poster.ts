@@ -1,5 +1,6 @@
 import Taro from '@tarojs/taro'
 import { getShareQrcode } from '../services/api'
+import { formatMs } from './format'
 
 export const POSTER_CANVAS_ID = 'share-poster'
 export const POSTER_WIDTH = 300
@@ -13,6 +14,8 @@ export interface PosterContent {
   correctCount: number
   totalCount: number
   masteredCount: number
+  /** Total quiz duration in milliseconds, shown as 本次用时. */
+  durationMs: number
   /** AI-generated share quote. */
   quote: string
 }
@@ -86,96 +89,185 @@ function roundRectPath(ctx: CanvasCtx, x: number, y: number, w: number, h: numbe
   ctx.closePath()
 }
 
-/** Draw the whole share poster. Call ctx.draw() afterwards. */
+/** Draw the whole share poster (dark-green premium style, 方案 A). Call ctx.draw() afterwards. */
 export function drawPoster(ctx: CanvasCtx, content: PosterContent, qr: QrState): void {
   const W = POSTER_WIDTH
   const H = POSTER_HEIGHT
-  const goldDeep = '#B57A0E'
-  const gold = '#E08A00'
-  const ink = '#4E3A22'
-  const muted = '#8A5A16'
+  const gold = '#FFD97A'
+  const goldSoft = '#C9BFA8'
+  const muted = '#B9AF98'
+  const green = '#8FD16A'
 
-  // Warm golden background.
-  const gradient = ctx.createLinearGradient(0, 0, 0, H)
-  gradient.addColorStop(0, '#FFF8E2')
-  gradient.addColorStop(1, '#FFE4AA')
-  ctx.setFillStyle(gradient)
+  // Dark-green gradient background.
+  const bg = ctx.createLinearGradient(0, 0, 0, H)
+  bg.addColorStop(0, '#1F2A24')
+  bg.addColorStop(0.55, '#16211C')
+  bg.addColorStop(1, '#0F1713')
+  ctx.setFillStyle(bg)
   ctx.fillRect(0, 0, W, H)
 
-  ctx.setTextAlign('center')
+  // Decorative glows: gold at top-right, green at bottom-left.
+  // (Layered translucent circles — safe fallback since the legacy canvas
+  // context does not expose createRadialGradient in its typings.)
+  const drawGlow = (gx: number, gy: number, maxR: number, rgb: string) => {
+    const layers = [0.1, 0.08, 0.05, 0.03]
+    layers.forEach((alpha, index) => {
+      ctx.beginPath()
+      ctx.arc(gx, gy, (maxR * (index + 1)) / layers.length, 0, Math.PI * 2)
+      ctx.setFillStyle(`rgba(${rgb},${alpha})`)
+      ctx.fill()
+    })
+  }
+  drawGlow(W, 0, 120, '242,169,0')
+  drawGlow(0, H, 110, '91,191,74')
+
   ctx.setTextBaseline('middle')
 
-  // Brand header.
-  ctx.setFillStyle(goldDeep)
-  ctx.setFontSize(18)
-  ctx.fillText('阿衰闯关学习', W / 2, 44)
+  // --- Header: brand left + "今日战报" pill right ---
+  ctx.setTextAlign('left')
+  ctx.setFillStyle(gold)
+  ctx.setFontSize(15)
+  ctx.fillText('阿衰闯关学习', 18, 36)
 
+  roundRectPath(ctx, W - 74, 25, 56, 21, 10)
+  ctx.setStrokeStyle('rgba(255,217,122,0.35)')
+  ctx.setLineWidth(1)
+  ctx.stroke()
+  ctx.setTextAlign('center')
+  ctx.setFillStyle(goldSoft)
+  ctx.setFontSize(9)
+  ctx.fillText('今日战报', W - 46, 36)
+
+  // --- Topic line: 今日闯关 · <topic> ---
+  ctx.setTextAlign('left')
   ctx.setFontSize(10)
-  ctx.setFillStyle(goldDeep)
-  ctx.fillText(`今日闯关 · ${ellipsize(content.topic, 18)}`, W / 2, 66)
+  ctx.setFillStyle(muted)
+  const prefix = '今日闯关 · '
+  ctx.fillText(prefix, 18, 62)
+  const prefixWidth = ctx.measureText(prefix).width
+  const topicMaxChars = Math.max(6, Math.floor((W - 36 - prefixWidth) / 10))
+  ctx.setFillStyle(gold)
+  ctx.setFontSize(11)
+  ctx.fillText(ellipsize(content.topic, topicMaxChars), 18 + prefixWidth, 62)
 
-  // Small divider under the header.
-  ctx.setStrokeStyle('rgba(181,122,14,0.3)')
+  // --- Progress ring (left) ---
+  const cx = 72
+  const cy = 134
+  const ringR = 50
+  ctx.setLineCap('round')
+  ctx.beginPath()
+  ctx.arc(cx, cy, ringR, 0, Math.PI * 2)
+  ctx.setStrokeStyle('rgba(255,255,255,0.12)')
+  ctx.setLineWidth(9)
+  ctx.stroke()
+  const ratio = Math.max(0, Math.min(100, content.accuracy)) / 100
+  if (ratio > 0) {
+    ctx.beginPath()
+    ctx.arc(cx, cy, ringR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ratio)
+    ctx.setStrokeStyle(gold)
+    ctx.stroke()
+  }
+  ctx.setLineCap('butt')
+  ctx.beginPath()
+  ctx.arc(cx, cy, ringR - 10, 0, Math.PI * 2)
+  ctx.setFillStyle('#141D18')
+  ctx.fill()
+
+  ctx.setTextAlign('center')
+  ctx.setFillStyle(gold)
+  ctx.setFontSize(21)
+  ctx.fillText(`${Math.round(content.accuracy)}%`, cx, cy - 7)
+  ctx.setFillStyle(muted)
+  ctx.setFontSize(9)
+  ctx.fillText('正确率', cx, cy + 14)
+
+  // --- Stat cards (right): 答对 / 掌握 / 用时 ---
+  const stats: Array<{ num: string; label: string }> = [
+    { num: `${content.correctCount}/${content.totalCount}`, label: '答对题数' },
+    { num: `${content.masteredCount}`, label: '掌握知识点' },
+    { num: formatMs(content.durationMs), label: '本次用时' }
+  ]
+  const cardX = 138
+  const cardW = W - cardX - 18
+  stats.forEach((stat, index) => {
+    const cardY = 76 + index * 38
+    roundRectPath(ctx, cardX, cardY, cardW, 30, 8)
+    ctx.setFillStyle('rgba(255,255,255,0.07)')
+    ctx.fill()
+    ctx.setStrokeStyle('rgba(255,255,255,0.1)')
+    ctx.setLineWidth(1)
+    ctx.stroke()
+    ctx.setTextAlign('left')
+    ctx.setFillStyle(green)
+    ctx.setFontSize(13)
+    ctx.fillText(stat.num, cardX + 10, cardY + 15)
+    const numWidth = ctx.measureText(stat.num).width
+    ctx.setFillStyle(muted)
+    ctx.setFontSize(9)
+    ctx.fillText(stat.label, cardX + 10 + numWidth + 6, cardY + 16)
+  })
+
+  // --- Quote card with gold accent bar ---
+  const quoteTop = 204
+  roundRectPath(ctx, 14, quoteTop, W - 28, 64, 10)
+  ctx.setFillStyle('rgba(255,217,122,0.08)')
+  ctx.fill()
+  roundRectPath(ctx, 14, quoteTop, 4, 64, 2)
+  ctx.setFillStyle(gold)
+  ctx.fill()
+
+  const quote = content.quote ? `「${content.quote}」` : '「把知识做成关卡，记忆会更深。」'
+  ctx.setTextAlign('left')
+  ctx.setFillStyle('#EFE6D2')
+  ctx.setFontSize(11)
+  const quoteLines = wrapText(ctx, quote, W - 32 - 24, 2)
+  let quoteY = quoteTop + (quoteLines.length > 1 ? 21 : 32)
+  for (const line of quoteLines) {
+    ctx.fillText(line, 30, quoteY)
+    quoteY += 22
+  }
+
+  // --- QR code (left) + call to action (right) ---
+  const codeSize = 86
+  const codeTop = 296
+  ctx.setFillStyle('#ffffff')
+  roundRectPath(ctx, 14, codeTop, codeSize, codeSize, 12)
+  ctx.fill()
+  if (qr.kind === 'image') {
+    ctx.drawImage(qr.path, 20, codeTop + 6, codeSize - 12, codeSize - 12)
+  } else {
+    ctx.setTextAlign('center')
+    ctx.setFontSize(11)
+    ctx.setFillStyle('#8A8A8A')
+    ctx.fillText(
+      qr.kind === 'loading' ? '二维码生成中…' : '小程序码',
+      14 + codeSize / 2,
+      codeTop + codeSize / 2 - 6
+    )
+    ctx.setFontSize(9)
+    ctx.setFillStyle('#B5AFA2')
+    ctx.fillText('发布后扫码即可使用', 14 + codeSize / 2, codeTop + codeSize / 2 + 12)
+  }
+
+  ctx.setTextAlign('left')
+  ctx.setFillStyle(gold)
+  ctx.setFontSize(13)
+  ctx.fillText('扫码一起闯关 →', 116, codeTop + 26)
+  ctx.setFillStyle(muted)
+  ctx.setFontSize(9)
+  ctx.fillText('把知识做成关卡，每天进步一点点', 116, codeTop + 50)
+
+  // --- Bottom divider + slogan ---
+  ctx.setStrokeStyle('rgba(255,255,255,0.08)')
   ctx.setLineWidth(1)
   ctx.beginPath()
-  ctx.moveTo(W / 2 - 56, 84)
-  ctx.lineTo(W / 2 + 56, 84)
+  ctx.moveTo(70, 414)
+  ctx.lineTo(W - 70, 414)
   ctx.stroke()
-
-  // Accuracy headline.
-  ctx.setFillStyle(gold)
-  ctx.setFontSize(54)
-  ctx.fillText(`${Math.round(content.accuracy)}%`, W / 2, 132)
-
-  ctx.setFontSize(11)
-  ctx.setFillStyle(muted)
-  ctx.fillText('正确率', W / 2, 158)
-
-  ctx.setFontSize(12)
-  ctx.fillText(
-    `答对 ${content.correctCount}/${content.totalCount} 题 · 掌握 ${content.masteredCount} 个知识点`,
-    W / 2,
-    188
-  )
-
-  // Quote area (fixed two lines keeps the QR block position stable).
-  const quote = content.quote ? `「${content.quote}」` : '「把知识做成关卡，记忆会更深。」'
-  const quoteLines = wrapText(ctx, quote, W - 52, 2)
-  ctx.setFillStyle(ink)
-  ctx.setFontSize(14)
-  let quoteY = 226
-  for (const line of quoteLines) {
-    ctx.fillText(line, W / 2, quoteY)
-    quoteY += 24
-  }
-
-  // QR code block.
-  const codeSize = 104
-  const codeLeft = (W - codeSize) / 2
-  const codeTop = quoteY + 14
-  ctx.setFillStyle('#ffffff')
-  roundRectPath(ctx, codeLeft, codeTop, codeSize, codeSize, 10)
-  ctx.fill()
-  ctx.setStrokeStyle('rgba(181,122,14,0.35)')
-  ctx.setLineWidth(1)
-  roundRectPath(ctx, codeLeft, codeTop, codeSize, codeSize, 10)
-  ctx.stroke()
-
-  if (qr.kind === 'image') {
-    ctx.drawImage(qr.path, codeLeft + 6, codeTop + 6, codeSize - 12, codeSize - 12)
-  } else {
-    ctx.setFontSize(11)
-    ctx.setFillStyle('#B57A0E')
-    ctx.fillText(qr.kind === 'loading' ? '二维码生成中…' : '小程序码', W / 2, codeTop + codeSize / 2 - 6)
-    ctx.setFontSize(9)
-    ctx.setFillStyle('#C8A25F')
-    ctx.fillText('发布后扫码即可使用', W / 2, codeTop + codeSize / 2 + 14)
-  }
-
-  // Footer slogan.
-  ctx.setFontSize(11)
-  ctx.setFillStyle(muted)
-  ctx.fillText('阿衰闯关学习 · 扫码一起闯关', W / 2, H - 24)
+  ctx.setTextAlign('center')
+  ctx.setFillStyle('#8F866F')
+  ctx.setFontSize(10)
+  ctx.fillText('阿衰闯关学习 · 万物皆可闯关', W / 2, 438)
 }
 
 /** Export the current canvas into a local image file. */

@@ -33,6 +33,7 @@ export default function PosterPage() {
       correctCount: data.correct_count,
       totalCount: data.question_count,
       masteredCount: report.mastered_points.length,
+      durationMs: data.total_duration_ms || 0,
       quote: report.share_quote || ''
     }
   }, [data, report])
